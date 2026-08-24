@@ -1,16 +1,16 @@
 ---
 name: seo
 description: >-
-  SEO in this project (Next.js Pages Router + Strapi): the SeoLayout widget, the mergeSeoData
+  SEO in this project (Next.js Pages Router): the SeoLayout widget, the mergeSeoData
   fallback chain (page seo → commonData.seo → APP_INFO), meta/OG/Twitter/canonical/robots tags,
-  the widgets.seo Strapi component (title/description/ogImage/keywords/theme/structuredData/noindex),
+  the Seo type (title/description/ogImage/keywords/theme/structuredData/noindex),
   noindex + per-environment indexing gate, JSON-LD, sitemap/robots.txt. Use ALWAYS when adding or
   editing meta tags, title/description, canonical, Open Graph / social cards, robots / noindex,
   schema.org / JSON-LD, hreflang, per-page SEO, or "the OG image is broken", "wrong title",
   "page shouldn't be indexed", "add SEO fields to this page type", "link preview is empty".
 ---
 
-# SEO (Next.js Pages Router + Strapi)
+# SEO (Next.js Pages Router)
 
 ## The one principle
 
@@ -19,7 +19,7 @@ description: >-
 zero manual fields. Empty strings and whitespace-only values count as **absent** (see `isEmpty`).
 
 ```
-manual field (CMS)  →  page/entity data  →  parent/category  →  global site settings (commonData.seo)  →  build defaults (APP_INFO)
+page's own Seo  →  page data  →  build defaults (APP_INFO)
 ```
 
 When you touch SEO, your job is to keep a page **on** this chain — never to special-case one page
@@ -36,9 +36,10 @@ SeoLayout (src/widgets/seo-layout)
   └─ LdJson   → ld-json.tsx                                     ← JSON-LD: parse → validate → escape
 ```
 
-`_app.tsx` feeds it two inputs from page props:
-- `commonSeoData = pageProps.cms.commonData.seo` — **global** site SEO (from `getCommonData`, cached).
+`_app.tsx` feeds it from page props:
 - `pageSeoData = pageProps.cms.pageSeoData` — **this page's** SEO (top of the chain).
+- `commonSeoData` — an optional site-wide layer; currently unused, `mergeSeoData` still honors it
+  if a global source ever appears.
 
 `mergeSeoData({ commonSeoData, pageSeoData })` in
 [`og-tags/utils.ts`](../../../src/widgets/seo-layout/og-tags/utils.ts) resolves every field down
@@ -55,44 +56,22 @@ Already handled correctly today:
   otherwise `noindex,nofollow`.
 - **Environment gate**: `APP_ALLOW_INDEXING` is `NEXT_PUBLIC_APP_ENV === "production"` — the **same**
   signal `src/pages/robots.txt.ts` uses. Test/preview are closed by default (meta robots **and** robots.txt).
-- **noindex** is a boolean on the `widgets.seo` component (page-level), OR-ed with the global flag.
+- **noindex** is a boolean on the page's `Seo` object, OR-ed with the global flag.
 
-The Strapi component is [`@strapi/src/components/widgets/seo.json`](../../../@strapi/src/components/widgets/seo.json):
-`title` (string), `description` (text), `ogImage` (media, single image), `keywords` (string),
-`theme` (color), `structuredData` (json), `noindex` (boolean, default false). The FE type mirror is
-[`Seo`](../../../src/shared/types/strapi-components/widgets.ts).
+The shape is the [`Seo`](../../../src/shared/types/seo.ts) type: `title`, `description`,
+`ogImage`, `keywords`, `theme` (color), `structuredData`, `noindex` (boolean).
 
-## Add SEO to a new page type (the whole task is 3 steps)
+## Add SEO to a page (the whole task is 2 steps)
 
-The home page is the reference. To give any page type its own SEO, replicate its wiring:
+1. **Build the `Seo` object** in the page's `getServerSideProps` — from page data, constants, or
+   whatever the page actually shows.
 
-1. **Schema (CMS)** — add the seo component to the content-type's `schema.json`:
-   ```json
-   "seo": { "type": "component", "component": "widgets.seo", "repeatable": false }
-   ```
-   (`home-page` already has it. See the `creating-strapi-content-type` skill.)
-
-2. **Fetcher** — populate it and validate it into the domain model. Reference:
-   [`getHomePage.ts`](../../../src/_pages/home/api/getHomePage.ts) +
-   [`schemas.ts`](../../../src/_pages/home/model/schemas.ts):
+2. **Hand it to `SeoLayout` via `cms.pageSeoData`:**
    ```ts
-   // populate — pull ogImage media inside the seo component
-   populate: { /* ...media... */, seo: { populate: "*" } },
-   // Zod schema — external shape, validate loosely, guarantee null when absent
-   seo: z.custom<Seo>().nullish().transform((v): Seo | null => v ?? null),
-   ```
-
-3. **Route** — hand it to `SeoLayout` via `cms.pageSeoData`. Reference:
-   [`src/pages/index.tsx`](../../../src/pages/index.tsx):
-   ```ts
-   props: { cms: { commonData, myPage, pageSeoData: myPage?.seo ?? null } }
+   props: { cms: { myPage, pageSeoData } }
    ```
 
 That's it — `_app.tsx` already reads `cms.pageSeoData`. Don't add `<Head>` tags in the page.
-
-> ⚠️ For a **collection item** (`[slug].tsx`), `pageSeoData` is that entry's `seo` component, and
-> the entity's own image should be the og:image fallback when the editor left `seo.ogImage` empty
-> (map the entity image into `seo.ogImage` in the fetcher, or extend `mergeSeoData`'s image source).
 
 ## Studio conventions (defaults to design toward)
 
@@ -131,32 +110,22 @@ the deep pages no matter how correct the canonical is.
 
 **Robots & indexing.** Prod open, test/preview closed (done via the env gate). Each page has a clear
 mode: `index,follow` / `noindex,follow` / `noindex,nofollow`. Search, service pages, ordinary filters:
-not indexed by default. A `noindex` page must not appear in sitemap. Editors can exclude a page via
-the CMS `noindex` flag.
+not indexed by default. A `noindex` page must not appear in sitemap.
 
-**Sitemap.** Built from real public pages (static + published CMS entries + SEO-filters + localized
-URLs), canonical & indexable only, `lastmod` from real `updatedAt` (never today's date by default),
-sitemap index for large projects, locale links for multilingual. **Already implemented** — see the
-`server-data-fetching` skill and [docs/12-sitemap.md](../../../docs/12-sitemap.md).
+**Sitemap.** Built from the real public routes of `src/pages` — see
+[docs/12-sitemap.md](../../../docs/12-sitemap.md). If you add a `noindex` page, exclude it from the
+scan as well: the two must stay consistent.
 
-**`noindex` exclusion is implemented too** (the two stay consistent): collection entries are filtered
-during the crawl via `populate: { seo: { fields: ["noindex"] } }`, and static routes via the
-`STATIC_PAGE_SEO` registry (`src/shared/api/sitemap/static-pages.ts`) — **register a static page there
-when it gets a SEO component**, otherwise its `noindex` won't be honored in the map. The filter is
-deliberately **fail-open**: only an explicit `true` excludes, so a missing `seo` component or a failed
-read never silently drops a real page (a lost page is worse than a stray one).
-
-**Schema.org / JSON-LD.** Generate base markup automatically from real CMS fields; manual JSON is a
+**Schema.org / JSON-LD.** Generate base markup automatically from real page data; manual JSON is a
 last-resort extra. Today `LdJson` only outputs the manual `structuredData` — **auto-generation
 is per-project**.
 
-The Strapi field is declared `json` but **arrives as a hand-written string**, so `LdJson`
+`structuredData` accepts a string as well as an object, so `LdJson`
 **parses → validates → re-serializes** it instead of passing it through: invalid JSON is dropped with
 a console warning (broken markup shipped silently is worse than none), and every `<` is replaced with
 its unicode escape so a `</script>` inside a value cannot break out of the script tag (the parser
 decodes it back — the value itself is unchanged). An object input works
-too, for when markup is built in code. **Don't bypass this** — never interpolate CMS content straight
-into a `<script>`.
+**Don't bypass this** — never interpolate external content straight into a `<script>`.
 
 Types: `WebSite` (site), `Organization`/`LocalBusiness`/`Store` (company),
 `CollectionPage`/`ItemList`/`BreadcrumbList` (catalog), `Product`/`Offer`/`Service`/`CreativeWork`
@@ -200,7 +169,7 @@ curl -s localhost:3000/ | grep -iE '<title>|og:image|canonical|name="robots"'
 ## Don'ts
 
 - **Don't add per-page `<Head>` blocks.** Route SEO through `cms.pageSeoData` → `SeoLayout`.
-- **Don't hardcode absolute image URLs** in CMS/data — let `toAbsoluteUrl` + the fallback chain do it.
+- **Don't hardcode absolute image URLs** — let `toAbsoluteUrl` + the fallback chain do it.
 - **Don't remove the query strip from canonical** without handling UTM/tracking explicitly first.
 - **Don't emit fake structured data** — no invented ratings, prices, availability.
 - **Don't open indexing on non-prod** — the env gate is deliberate; test/preview stay `noindex`.
@@ -208,8 +177,5 @@ curl -s localhost:3000/ | grep -iE '<title>|og:image|canonical|name="robots"'
 
 ## Related
 
-- `server-data-fetching` — fetchers, populate/fields, orchestrator, sitemap crawl, cache.
-- `strapi-frontend-typing` — the Strapi→FE Zod bridge (how `seo` is validated into the domain).
-- `creating-strapi-content-type` / `creating-strapi-component` — adding the seo component to a schema.
-- `cms-content-rendering` — sanitizing CMS HTML (JSON-LD is serialized, not user-editable HTML).
+- `server-data-fetching` — server queries, the orchestrator, sitemap.
 - Docs: [docs/14-seo.md](../../../docs/14-seo.md), [docs/12-sitemap.md](../../../docs/12-sitemap.md).

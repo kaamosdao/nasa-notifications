@@ -9,4 +9,4 @@ Loading, runtime, and resource optimization, with an **"In this project"** secti
 at where it already lives (imgproxy, lru-cache, next/dynamic, Lenis, nginx).
 
 This is a pointer to the project skill. **Open and follow** `.claude/skills/performance/SKILL.md`.
-Source-of-truth siblings: `responsive-images`, `server-data-fetching`, `core-web-vitals`, `animation`.
+Source-of-truth siblings: `server-data-fetching`, `core-web-vitals`, `animation`.

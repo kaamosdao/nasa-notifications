@@ -29,7 +29,7 @@ Pages Router + SSR. Apply the metrics below through the real stack — **ignore 
 - **LCP** — page text/data is server-rendered via `getServerSideProps` (already good; see
   [server-data-fetching](../server-data-fetching/SKILL.md)). The LCP image is a CMS image through
   **`MediaImage` + imgproxy** — mark the hero eager/high-priority via `MediaImage` props, not
-  `next/image priority`. Details: [responsive-images](../responsive-images/SKILL.md).
+  `next/image priority`.
 - **CLS** — `MediaImage` already carries `width`/`height` from `MediaWithBreakpoints`, so images
   reserve space. Motion is GSAP/Lenis: **animate `transform`/`opacity` only** and honor
   `prefers-reduced-motion` ([animation](../animation/SKILL.md)). No custom web-fonts are wired today
@@ -462,7 +462,7 @@ onCLS(sendToAnalytics);
 This project renders CMS images through `MediaImage` + imgproxy, **not** `next/image`. Use that:
 
 ```tsx
-// LCP: hero image — eager + high priority via MediaImage's real props (see responsive-images)
+// LCP: hero image — eager + high priority
 <MediaImage source={media} loading="eager" fetchPriority="high" sizes="100vw" />
 // (MediaImage emits width/height + srcSet via imgproxy; default is loading="lazy")
 
@@ -475,7 +475,6 @@ const HeavyComponent = dynamic(() => import("./heavy"), { ssr: false });
 ```
 
 > If you're tempted to reach for `next/image` here, don't — it's not wired, and image delivery is
-> owned by imgproxy. See [responsive-images](../responsive-images/SKILL.md).
 
 ### React
 ```jsx

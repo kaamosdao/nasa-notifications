@@ -28,7 +28,7 @@
 GITLAB_URL="https://git.snpdev.ru"
 PROJECT_ID="803"                     # числовой ID проекта (Settings → General)
 TOKEN="glpat-xxxxxxxxxxxxxxxxxxxx"   # PAT/Project Access Token со scope=api
-ENV_FILES=".env @strapi/.env"        # какие .env читать в режиме 2 (по умолчанию эти)
+ENV_FILES=".env"                     # какие .env читать в режиме 2 (по умолчанию этот)
 ```
 
 Обязательны `GITLAB_URL`, `PROJECT_ID`, `TOKEN` — без них скрипт выходит с ошибкой.
@@ -78,7 +78,7 @@ cd scripts
 Поток работы:
 
 1. Спрашивает целевой environment (`TARGET_ENV`).
-2. Парсит файлы из `ENV_FILES` (по умолчанию `.env` и `@strapi/.env`) на python:
+2. Парсит файлы из `ENV_FILES` (по умолчанию `.env`) на python:
    - пропускает пустые строки и комментарии (`#`);
    - матчит `KEY=VALUE` (`^[A-Za-z_][A-Za-z0-9_]*=...`);
    - снимает обрамляющие кавычки (`"` или `'`);

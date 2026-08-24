@@ -54,10 +54,18 @@ export const ExampleButton = (props: ExampleButtonProps) => {
   // отфильтрованные через styles[...]. Ключи-значения должны совпадать с классами в .module.scss.
   const mods = mod(s, { variant, size, colorScheme });
 
-  const label = useMemo(() => (typeof children === "string" ? children.trim() : children), [children]);
+  const label = useMemo(
+    () => (typeof children === "string" ? children.trim() : children),
+    [children],
+  );
 
   return (
-    <button type="button" disabled={disabled} className={clsx(s.root, mods, className)} {...rest}>
+    <button
+      type="button"
+      disabled={disabled}
+      className={clsx(s.root, mods, className)}
+      {...rest}
+    >
       <span className={s.body}>{label}</span>
     </button>
   );

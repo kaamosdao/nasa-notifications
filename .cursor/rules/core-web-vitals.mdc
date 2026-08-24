@@ -9,4 +9,4 @@ LCP / INP / CLS optimization, with an **"In this project"** section — the key 
 go through `MediaImage` + imgproxy, **not** `next/image`.
 
 This is a pointer to the project skill. **Open and follow** `.claude/skills/core-web-vitals/SKILL.md`.
-Source-of-truth siblings: `responsive-images`, `server-data-fetching`, `animation`.
+Source-of-truth siblings: `server-data-fetching`, `animation`.

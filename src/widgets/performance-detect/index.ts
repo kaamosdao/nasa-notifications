@@ -1,5 +1,5 @@
 export { PerformanceDetect } from "./performance-detect";
 export {
-  usePerformanceStore,
   usePerformanceActions,
+  usePerformanceStore,
 } from "./use-performance-store";

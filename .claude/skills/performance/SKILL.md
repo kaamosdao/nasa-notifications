@@ -24,7 +24,7 @@ Where each lever below already lives in this stack (don't reinvent them):
 
 - **Images** — the biggest lever, already owned by **imgproxy + `MediaImage`** (WebP/AVIF, srcSet,
   sizes, lazy/eager, width/height). Don't hand-roll `<picture>`; see
-  [responsive-images](../responsive-images/SKILL.md).
+  the asset-loading rules below.
 - **Server response / caching** — global CMS data is cached with **lru-cache** (`cached()`,
   SWR + single-flight) and requests are trimmed via `fields`/`populate`. See
   [server-data-fetching](../server-data-fetching/SKILL.md) and `docs/11-server-cache.md`. Static-asset

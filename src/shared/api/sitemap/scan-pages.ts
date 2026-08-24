@@ -1,5 +1,3 @@
-import type { SitemapCollection } from "./types";
-
 import fs from "node:fs";
 import path from "node:path";
 
@@ -20,11 +18,8 @@ const PAGE_EXT = /\.(tsx|ts|jsx|js)$/;
 const isDynamicSegment = (segment: string) =>
   segment.startsWith("[") && segment.endsWith("]");
 
-const isSlugPageFile = (baseName: string) => baseName === "[slug]";
-
 type WalkResult = {
   staticPaths: string[];
-  conventionCollections: SitemapCollection[];
 };
 
 function walk(dir: string, routeSegments: string[], out: WalkResult): void {
@@ -36,8 +31,7 @@ function walk(dir: string, routeSegments: string[], out: WalkResult): void {
     if (name === "api" || name.startsWith(".")) continue;
 
     if (entry.isDirectory()) {
-      // Пропускаем catch-all / optional catch-all и прочие динамические папки
-      // без отдельной конвенции (кроме файла [slug].tsx на уровень выше).
+      // Динамические сегменты пропускаем: публичных URL с параметрами в проекте нет.
       if (isDynamicSegment(name)) continue;
 
       walk(path.join(dir, name), [...routeSegments, name], out);
@@ -47,18 +41,6 @@ function walk(dir: string, routeSegments: string[], out: WalkResult): void {
     if (!PAGE_EXT.test(name)) continue;
 
     const baseName = name.replace(PAGE_EXT, "");
-
-    // Конвенция: src/pages/<uid>/[slug].tsx → коллекция uid, path /uid/:slug
-    if (isSlugPageFile(baseName)) {
-      if (routeSegments.length === 0) continue;
-      const uid = routeSegments[routeSegments.length - 1];
-      const prefix = `/${routeSegments.join("/")}`;
-      out.conventionCollections.push({
-        uid,
-        toPath: (slug) => `${prefix}/${slug}`,
-      });
-      continue;
-    }
 
     if (
       SKIP_FILES.has(baseName) ||
@@ -79,11 +61,9 @@ function walk(dir: string, routeSegments: string[], out: WalkResult): void {
   }
 }
 
-/**
- * Умный обход `src/pages`: статические пути + коллекции по конвенции `[slug].tsx`.
- */
+/** Обход `src/pages`: статические маршруты для карты сайта. */
 export function scanPages(): WalkResult {
-  const out: WalkResult = { staticPaths: [], conventionCollections: [] };
+  const out: WalkResult = { staticPaths: [] };
   walk(PAGES_DIR, [], out);
   out.staticPaths.sort();
   return out;

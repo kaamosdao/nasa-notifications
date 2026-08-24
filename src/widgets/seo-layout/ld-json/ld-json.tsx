@@ -2,7 +2,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 
 import { APP_INFO } from "@shared/config";
-import type { LinkSocial, Organization } from "@shared/types/strapi-components";
+import type { LinkSocial, Organization } from "@shared/types/seo";
 
 import { buildCanonicalPath } from "../og-tags/canonical";
 import { mergeSeoData } from "../og-tags/utils";
@@ -19,7 +19,7 @@ export type LdJsonProps = SeoLayoutDataType & {
 /**
  * Разбирает ручной `structuredData` из CMS.
  *
- * Поле объявлено в Strapi как `json`, но приходит СТРОКОЙ, которую редактор пишет руками,
+ * Поле допускает и строку, и готовый объект,
  * поэтому её нельзя пробрасывать в разметку как есть: битый JSON, отданный молча, хуже
  * отсутствующего — валидатор ругается, а никто об этом не узнает.
  */

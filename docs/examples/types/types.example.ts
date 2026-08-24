@@ -1,9 +1,8 @@
 // Эталон типизации проекта (для AI-контекста): три уровня типов + утилиты + Zod-схема.
-// Живые аналоги: src/shared/types/index.ts (утилиты), src/_pages/home/model/schemas.ts (ui),
-// src/shared/content-types/schemas/media.schema.ts (domain через Zod).
+// Живой аналог: src/shared/types/index.ts (утилиты), src/shared/types/seo.ts (доменные типы).
 //
 // Разделение типов по назначению (по FSD прослеживается, границы держим руками):
-//  • API-типы    — форма сырого ответа/параметров транспорта (Strapi/axios).
+//  • API-типы    — форма сырого ответа/параметров транспорта (строка БД, HTTP-ответ).
 //  • DOMAIN-типы  — доменные модели после адаптации сырого CMS-ответа (часто через Zod).
 //  • UI-типы      — пропсы компонентов (<Component>Props), то, чем оперирует представление.
 //
@@ -29,18 +28,18 @@ export type ApiList<T> = {
 };
 
 /* ───────────────────────────── API-ТИПЫ ─────────────────────────────
- * Форма сырого ответа Strapi (collectionType): data[] + meta.pagination. */
+ * Форма сырого ответа списочного API: data[] + meta.pagination. */
 
-export type StrapiPagination = {
+export type ApiPagination = {
   page: number;
   pageSize: number;
   pageCount: number;
   total: number;
 };
 
-export type StrapiCollectionResponse<T> = {
+export type ApiCollectionResponse<T> = {
   data: T[];
-  meta: { pagination: StrapiPagination };
+  meta: { pagination: ApiPagination };
 };
 
 /* ──────────────────────────── DOMAIN-ТИПЫ ────────────────────────────

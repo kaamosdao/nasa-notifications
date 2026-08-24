@@ -149,7 +149,6 @@ import Image from 'next/image';
 
 > **This project does NOT use `next/image`.** CMS images go through `MediaImage` + imgproxy. The LCP
 > hero here is `<MediaImage source={media} loading="eager" fetchPriority="high" sizes="100vw" />`.
-> See the [responsive-images skill](../../responsive-images/SKILL.md).
 
 ### Nuxt
 ```vue

@@ -1,36 +1,34 @@
 ---
 name: local-run
 description: >-
-  Brings the project up locally (Next.js frontend + Strapi backend + postgres/imgproxy/meilisearch):
+  Brings the project up locally (Next.js frontend + postgres, later the ingestor worker):
   either natively via pnpm, or through Docker Compose. Use ALWAYS when the user
-  asks to "run it locally", "bring up the stack", "build the frontend", "docker compose up", "start
-  Strapi/the backend", "why won't the container start", "rebuild the image", "back up the DB" —
+  asks to "run it locally", "bring up the stack", "build the frontend", "docker compose up",
+  "start the ingestor", "why won't the container start", "rebuild the image", "back up the DB" —
   and generally for any local build, run, or debugging of this project's dev environment.
 ---
 
 # Local build and run
 
-Node from `.nvmrc` = `v22.17.0`, package manager — pnpm 11.0.8. The frontend lives at the root,
-the backend in `@strapi/`; there are no workspace packages, they are installed independently. Details —
-`docs/04-docker-compose.md`.
+Node from `.nvmrc` = `v22.17.0`, package manager — pnpm. The frontend lives at the root;
+the Kafka consumer will live in `services/ingestor` as a pnpm-workspace package.
+Details — `docs/04-docker-compose.md`.
 
 There are two paths: **native** (fast hot-reload, convenient for coding) and **Docker Compose**
 (closer to production, brings up the whole infrastructure). Choose based on the task.
 
 ## Option A. Native (pnpm)
 
-For the backend, `DATABASE_HOST` in `@strapi/.env` must be `localhost` (not `postgres`).
-
 ```bash
 # DB in docker (postgres only), if you have no local PG:
 docker compose up -d postgres
 
-# backend — terminal 1
-cd @strapi && pnpm install && pnpm develop      # http://localhost:1337/admin
-
-# frontend — terminal 2, from the root
+# frontend, from the root
 pnpm install && pnpm dev                         # http://localhost:3000
 ```
+
+In `.env`, `DATABASE_URL` must point at `localhost` (not `postgres`) — the service name only
+resolves inside the compose network.
 
 Frontend scripts (`package.json`): `pnpm dev`, `pnpm build`, `pnpm start`,
 `pnpm lint` (biome check), `pnpm format`, `pnpm check` (biome check --write).
@@ -44,21 +42,28 @@ hot-reload. The Dockerfile path is chosen by `ENVIRONMENT` (`docker/*/${ENVIRONM
 export PROJECT_SLUG=<slug> ENVIRONMENT=development   # or set them in the root .env
 docker compose up -d
 docker compose ps
-docker compose logs -f backend
+docker compose logs -f frontend
 ```
 
-Ports: frontend **3000**, Strapi **1337** (`/admin`), postgres **5432**,
-imgproxy **8080**, meilisearch **7700**.
+Ports: frontend **3000**, postgres **5432**.
 
-Startup order in dev is a plain `depends_on` without a healthcheck: postgres → backend → frontend/imgproxy.
+Postgres has a healthcheck (`pg_isready`); the frontend waits for `service_healthy` — an app
+that starts before the DB accepts connections fails its first SSR query, not at some later
+point where the cause would be obvious.
+
+## The GCN stream in dev
+
+GCN can stay silent for hours, so an empty feed is **not** evidence that something is broken.
+For anything animation- or layout-related, drive the feed from a mock producer that inserts a
+row every couple of seconds rather than waiting on the real stream.
 
 ## Useful commands
 
 ```bash
-docker compose build --no-cache backend          # rebuild a single service
+docker compose build --no-cache frontend         # rebuild a single service
 docker compose down                              # stop (data is preserved)
 docker compose down -v                           # ⚠️ tear down ALONG WITH the volume (deletes the DB)
-docker compose exec postgres pg_dump -U strapi strapi > backup.sql   # DB backup
+docker compose exec postgres pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" > backup.sql
 ```
 
 ## Pitfalls
@@ -74,7 +79,8 @@ docker compose exec postgres pg_dump -U strapi strapi > backup.sql   # DB backup
 4. **`NEXT_PUBLIC_*` are baked in at the `next build` step**, not at runtime — in prod mode
    editing `.env` without rebuilding the frontend image won't be picked up (in dev with hot-reload it's fine).
 5. **`down -v` deletes the DB.** If you need to keep the data — take a backup beforehand.
+6. **Two ingestor instances double-consume.** The consumer keeps a stable `groupId`; running the
+   worker natively while the compose one is up makes both rebalance against each other. Run one.
 
 To debug "the container won't start", check the logs (`docker compose logs <svc>`) and the typical
-causes in `docs/08-ci-cd.md` (unhealthy backend — Strapi didn't come up in time, raise `start_period`;
-SyntaxError on Strapi startup — see the `docker-images` skill).
+causes in `docs/08-ci-cd.md`.

@@ -1,13 +1,13 @@
 # SEO — договорённости и текущая реализация
 
-Как устроено SEO в этом проекте (Next.js Pages Router + Strapi) и какие правила закладываем по
+Как устроено SEO в этом проекте (Next.js Pages Router) и какие правила закладываем по
 умолчанию. Документ совмещает **договорённости студии** (по итогам аудита проектов) и **текущее
 состояние сборки** — что уже работает из коробки, а что настраивается под проект.
 
 - Виджет: [`src/widgets/seo-layout/`](../src/widgets/seo-layout/) (`OgTags` + `Favicons` + `LdJson`)
 - Цепочка fallback: [`og-tags/utils.ts`](../src/widgets/seo-layout/og-tags/utils.ts) (`mergeSeoData`)
 - Мета-теги: [`og-tags/og-tags.tsx`](../src/widgets/seo-layout/og-tags/og-tags.tsx)
-- Компонент CMS: [`@strapi/src/components/widgets/seo.json`](../@strapi/src/components/widgets/seo.json)
+- Типы SEO-данных: [`src/shared/types/seo.ts`](../src/shared/types/seo.ts)
 - robots.txt / sitemap: [`src/pages/robots.txt.ts`](../src/pages/robots.txt.ts), [12-sitemap.md](./12-sitemap.md)
 - Плейбук для агентов: скилл `seo` (`.claude/skills/seo/SKILL.md`)
 
@@ -43,25 +43,21 @@ noindex, origin }`. `OgTags` рендерит из этого: `title`, `descrip
 | canonical абсолютный | `og-tags.tsx` | `origin + asPath`, query отрезается (`split("?")[0]`) |
 | robots по режиму | `og-tags.tsx` | `index,follow` только если окружение открыто И страница не `noindex`; иначе `noindex,nofollow` |
 | индексируется только прод | `app.ts` `APP_ALLOW_INDEXING` | `NEXT_PUBLIC_APP_ENV === "production"` — **тот же сигнал**, что в `robots.txt.ts` |
-| noindex на уровне страницы | `seo.json` `noindex` + `utils.ts` | булев флаг компонента, OR с глобальным |
+| noindex на уровне страницы | `Seo.noindex` + `utils.ts` | булев флаг страницы, OR с глобальным |
 | og:image alt/width/height | `utils.ts` + `og-tags.tsx` | alt из картинки → заголовок; размеры из картинки → 1200×630 |
 | og:site_name | `utils.ts` `siteName` | глобальный SEO-title → дефолт → домен |
 
-Компонент [`widgets.seo`](../@strapi/src/components/widgets/seo.json): `title`, `description`,
-`ogImage` (одна картинка), `keywords`, `theme` (цвет), `structuredData` (json), `noindex` (bool,
-default false). FE-зеркало — тип [`Seo`](../src/shared/types/strapi-components/widgets.ts).
+Форма SEO-данных — тип [`Seo`](../src/shared/types/seo.ts): `title`, `description`,
+`ogImage`, `keywords`, `theme` (цвет), `structuredData`, `noindex` (bool). Раньше это было
+зеркало компонента CMS; теперь значения приходят из кода страницы.
 
-### Добавить SEO новому типу страницы
+### Добавить SEO новой странице
 
-Эталон — главная. Три шага (подробно — в скилле `seo`):
+1. Собрать объект `Seo` в `getServerSideProps` страницы.
+2. Положить его в `props.cms.pageSeoData`.
 
-1. **Schema**: добавить `"seo": { "type": "component", "component": "widgets.seo" }` в `schema.json`
-   контент-типа (у `home-page` уже есть).
-2. **Fetcher**: `populate: { seo: { populate: "*" } }` + в Zod-схему
-   `seo: z.custom<Seo>().nullish().transform((v) => v ?? null)` (см. `getHomePage.ts` / `schemas.ts`).
-3. **Route**: `props.cms.pageSeoData = myPage?.seo ?? null` (см. `index.tsx`).
-
-`_app.tsx` уже читает `cms.pageSeoData` — свои `<Head>` в странице **не добавляем**.
+`_app.tsx` уже читает `cms.pageSeoData` и передаёт в `SeoLayout` — свои `<Head>` в странице
+**не добавляем**.
 
 ## Договорённости студии (проектные дефолты)
 
@@ -122,16 +118,16 @@ sitemap index для крупных, связи локалей для мульт
 чтения не выкидывают реальную страницу из карты.
 
 ### 6. Schema.org / JSON-LD
-Базовую разметку генерировать автоматически из реальных CMS-полей; ручной JSON — только как
-дополнение. Сегодня `LdJson` отдаёт **только** ручной `structuredData` — **автогенерация под проект**.
+Базовую разметку генерировать автоматически из реальных данных страницы; ручной JSON — только
+как дополнение. Сегодня `LdJson` отдаёт **только** ручной `structuredData` — **автогенерация под проект**.
 
-Поле в Strapi объявлено как `json`, но приходит **строкой, которую редактор пишет руками**, поэтому
+`structuredData` допускает и строку, и готовый объект, поэтому
 [`LdJson`](../src/widgets/seo-layout/ld-json/ld-json.tsx) не пробрасывает её в разметку, а
 **парсит → проверяет → сериализует заново**:
 
 - **невалидный JSON не выводится** и пишется в лог — битая разметка, отданная молча, хуже отсутствующей;
 - **каждый `<` заменяется юникод-escape**, поэтому `</script>` внутри значения не может закрыть тег
-  (парсер декодирует обратно — значение не меняется). Без этого содержимое из CMS в `<script>` —
+  (парсер декодирует обратно — значение не меняется). Без этого внешнее содержимое в `<script>` —
   готовый вектор инъекции;
 - объект на входе тоже поддержан — на случай, если разметку соберут в коде.
 

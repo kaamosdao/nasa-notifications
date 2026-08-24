@@ -1,26 +1,33 @@
-import type { Image } from "./shared";
+/**
+ * Типы SEO-слоя (`src/widgets/seo-layout`).
+ *
+ * Раньше жили в `shared/types/strapi-components` и описывали компоненты CMS. Рантайм-зависимости
+ * от CMS у SEO-виджета нет — он читает только форму данных, поэтому типы переехали сюда как есть.
+ * Источник значений теперь — `APP_INFO` и данные страницы, а не Strapi.
+ */
+
+export type SeoImage = {
+  url: string;
+  alternativeText?: string | null;
+  width?: number;
+  height?: number;
+  mime?: string;
+};
 
 export type Seo = {
   title?: string;
   description?: string;
   keywords?: string;
-  ogImage?: Image;
+  ogImage?: SeoImage;
   theme?: string;
-  /**
-   * JSON-LD из CMS. В Strapi это поле типа `json`, но приходит СТРОКОЙ, которую редактор
-   * пишет руками. Объект допускаем на случай, если разметку соберут в коде или поле начнёт
-   * приходить распарсенным — `LdJson` обрабатывает оба варианта.
-   */
+  /** JSON-LD: допускаем и строку, и готовый объект — `LdJson` обрабатывает оба варианта. */
   structuredData?: string | Record<string, unknown> | unknown[];
   /** Закрыть страницу от индексации (→ meta robots noindex,nofollow, исключение из sitemap). */
   noindex?: boolean;
 };
 
 /**
- * Данные организации из глобальных настроек (компонент `widgets.organization`).
- *
- * Единый источник правды для футера, страницы контактов и schema.org — иначе карточка
- * организации в разметке расходится с тем, что видит пользователь на сайте.
+ * Данные организации — единый источник правды для футера и schema.org Organization.
  */
 export type Organization = {
   /** Тип schema.org: обычная компания, локальный бизнес, магазин, услуги. */
@@ -32,7 +39,7 @@ export type Organization = {
   name?: string;
   legalName?: string;
   description?: string;
-  logo?: Image;
+  logo?: SeoImage;
   phone?: string;
   email?: string;
   streetAddress?: string;
@@ -46,7 +53,7 @@ export type Organization = {
   openingHours?: string;
 };
 
-/** Соцсеть из глобальных данных — источник `sameAs` для schema.org. */
+/** Соцсеть — источник `sameAs` для schema.org. */
 export type LinkSocial = {
   url?: string;
   text?: string;

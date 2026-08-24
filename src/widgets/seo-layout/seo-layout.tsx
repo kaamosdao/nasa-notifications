@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Head from "next/head";
 
-import type { LinkSocial, Organization } from "@shared/types/strapi-components";
+import type { LinkSocial, Organization } from "@shared/types/seo";
 
 import { Favicons } from "./favicons";
 import { LdJson } from "./ld-json";

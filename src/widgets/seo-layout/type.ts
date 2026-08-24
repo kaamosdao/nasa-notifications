@@ -1,4 +1,4 @@
-import type { Seo } from "@shared/types/strapi-components";
+import type { Seo } from "@shared/types/seo";
 
 export type SeoLayoutDataType = {
   commonSeoData?: Seo;

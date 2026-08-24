@@ -25,7 +25,7 @@
 
 ### API и контент
 
-- **@strapi/client 1.5.0** - Клиент для Strapi CMS
+- **pg 8.23.0** - Драйвер PostgreSQL (пул соединений, `LISTEN/NOTIFY`)
 - **ky 1.10.0** - HTTP клиент
 - **html-react-parser 5.2.7** - Парсинг HTML
 
@@ -99,7 +99,6 @@
     "ignoreUnknown": true,
     "includes": [
       "**",
-      "!@strapi",
       "!.pnpm-store",
       "!node_modules",
       "!.next",
@@ -112,7 +111,7 @@
 
 **Настройки**:
 - `vcs.enabled: true` - Интеграция с Git
-- `files.includes` - Файлы для обработки (исключены `@strapi`, `node_modules`, `.next`)
+- `files.includes` - Файлы для обработки (исключены `node_modules`, `.next`)
 
 #### Форматтер
 
@@ -468,7 +467,7 @@ export const useStore = create<Store>((set) => ({
 **Назначение**: Валидация и типизация
 
 **Использование**:
-- Валидация данных из Strapi
+- Валидация данных, приходящих из Kafka/Postgres
 - Схемы для content types
 - Runtime валидация
 

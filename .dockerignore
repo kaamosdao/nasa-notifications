@@ -17,15 +17,6 @@ pnpm-debug.log*
 out
 build
 
-# Strapi
-@strapi/.strapi
-@strapi/dist
-@strapi/node_modules
-@strapi/.tmp
-@strapi/.cache
-@strapi/public/uploads/*
-!@strapi/public/uploads/.gitkeep
-.strapi-updater.json
 
 # Environment files
 .env

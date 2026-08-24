@@ -12,18 +12,10 @@ fi
 EXTRA_ARGS=()
 EXTRA_VARS=()
 TMP_INVENTORY=""
-TMP_DB_DUMP=""
-TMP_UPLOADS_DIR=""
 
 cleanup() {
   if [[ -n "${TMP_INVENTORY}" && -f "${TMP_INVENTORY}" ]]; then
     rm -f "${TMP_INVENTORY}"
-  fi
-  if [[ -n "${TMP_DB_DUMP}" && -f "${TMP_DB_DUMP}" ]]; then
-    rm -f "${TMP_DB_DUMP}"
-  fi
-  if [[ -n "${TMP_UPLOADS_DIR}" && -d "${TMP_UPLOADS_DIR}" ]]; then
-    rm -rf "${TMP_UPLOADS_DIR}"
   fi
 }
 trap cleanup EXIT
@@ -100,11 +92,6 @@ ask_become() {
     non_root="${PROD_USER}"
   fi
 
-  if [[ -n "${SOURCE_USER:-}" && "${SOURCE_USER}" != "root" ]]; then
-    default="Y"
-    non_root="${non_root:+${non_root}, }${SOURCE_USER}"
-  fi
-
   if [[ "${default}" == "Y" ]]; then
     echo
     echo "Connecting as non-root (${non_root}); tasks run through sudo (become: true)."
@@ -149,22 +136,12 @@ ask_production_host() {
 }
 
 write_inventory() {
-  # write_inventory [with_source]
-  local with_source="${1:-false}"
   TMP_INVENTORY="$(mktemp -t ansible-inventory.XXXXXX.ini)"
 
   cat >"${TMP_INVENTORY}" <<EOF
 [production]
 prod-1 ansible_host=${PROD_HOST} ansible_user=${PROD_USER}
 EOF
-
-  if [[ "${with_source}" == "true" ]]; then
-    cat >>"${TMP_INVENTORY}" <<EOF
-
-[source]
-old-1 ansible_host=${SOURCE_HOST} ansible_user=${SOURCE_USER}
-EOF
-  fi
 
   EXTRA_ARGS+=(-i "${TMP_INVENTORY}")
 }
@@ -180,152 +157,21 @@ run_setup() {
   ask_production_host
   ask_project_vars
   ask_become
-  write_inventory false
+  write_inventory
   echo
   run_playbook playbooks/prod-routine.yml
-}
-
-run_migrate_remote() {
-  echo
-  echo "→ Migrate data: remote → production"
-  ask_production_host
-  echo
-  echo "Source host"
-  prompt_required "source ansible_host (IP)"
-  SOURCE_HOST="${PROMPT_VALUE}"
-  prompt_required "source ansible_user" "ubuntu"
-  SOURCE_USER="${PROMPT_VALUE}"
-
-  ask_project_vars
-  prompt_required "source_project_slug" "${PROJECT_SLUG}"
-  SOURCE_PROJECT_SLUG="${PROMPT_VALUE}"
-
-  ask_yes_no "Backup current prod data before import?" "Y"
-  MIGRATE_BACKUP="${PROMPT_YN}"
-  ask_yes_no "Stop backend/imgproxy during import?" "Y"
-  MIGRATE_STOP="${PROMPT_YN}"
-
-  EXTRA_VARS+=(
-    -e "migrate_source=remote"
-    -e "source_project_slug=${SOURCE_PROJECT_SLUG}"
-    -e "migrate_backup=${MIGRATE_BACKUP}"
-    -e "migrate_stop_services=${MIGRATE_STOP}"
-  )
-
-  ask_become
-  write_inventory true
-  echo
-  run_playbook playbooks/migrate-data-to-prod.yml
-}
-
-run_migrate_local() {
-  local db_path uploads_path postgres_container backend_container uploads_volume image_id
-
-  echo
-  echo "→ Migrate data: local → production"
-  ask_production_host
-  ask_project_vars
-
-  postgres_container="${PROJECT_SLUG}_postgres"
-  backend_container="${PROJECT_SLUG}_backend"
-  uploads_volume="${PROJECT_SLUG}_strapi-uploads"
-
-  if ! command -v docker >/dev/null 2>&1; then
-    echo "docker not found. Install Docker to export local Postgres and uploads."
-    exit 1
-  fi
-
-  if ! docker ps --format '{{.Names}}' | grep -qx "${postgres_container}"; then
-    echo "Running postgres container not found: ${postgres_container}"
-    echo "Start the local stack (docker compose up) and check project_slug matches PROJECT_SLUG."
-    exit 1
-  fi
-
-  if ! docker volume inspect "${uploads_volume}" >/dev/null 2>&1; then
-    echo "Docker volume not found: ${uploads_volume}"
-    echo "Start the local stack (docker compose up) and check project_slug matches PROJECT_SLUG."
-    exit 1
-  fi
-
-  echo
-  echo "Dumping local Postgres from ${postgres_container}..."
-  TMP_DB_DUMP="$(mktemp -t migrate-db.XXXXXX.dump)"
-  docker exec "${postgres_container}" \
-    sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' \
-    > "${TMP_DB_DUMP}"
-  db_path="${TMP_DB_DUMP}"
-  echo "Dump ready: ${db_path}"
-
-  echo
-  echo "Exporting uploads from volume ${uploads_volume}..."
-  TMP_UPLOADS_DIR="$(mktemp -d -t migrate-uploads.XXXXXX)"
-  # Prefer docker cp from backend (volume already mounted) — no image pull.
-  # Fallback: reuse the local postgres image id so Docker Hub is not needed.
-  if docker ps -a --format '{{.Names}}' | grep -qx "${backend_container}"; then
-    docker cp "${backend_container}:/opt/app/public/uploads/." "${TMP_UPLOADS_DIR}/"
-  else
-    image_id="$(docker inspect -f '{{.Image}}' "${postgres_container}")"
-    docker run --rm \
-      --entrypoint sh \
-      -v "${uploads_volume}:/source:ro" \
-      -v "${TMP_UPLOADS_DIR}:/export" \
-      "${image_id}" \
-      -c 'cp -a /source/. /export/'
-  fi
-  uploads_path="${TMP_UPLOADS_DIR}"
-  echo "Uploads ready: ${uploads_path}"
-
-  ask_yes_no "Backup current prod data before import?" "Y"
-  MIGRATE_BACKUP="${PROMPT_YN}"
-  ask_yes_no "Stop backend/imgproxy during import?" "Y"
-  MIGRATE_STOP="${PROMPT_YN}"
-
-  EXTRA_VARS+=(
-    -e "migrate_source=local"
-    -e "migrate_local_db_path=${db_path}"
-    -e "migrate_local_uploads_path=${uploads_path}"
-    -e "migrate_backup=${MIGRATE_BACKUP}"
-    -e "migrate_stop_services=${MIGRATE_STOP}"
-  )
-
-  ask_become
-  write_inventory false
-  echo
-  run_playbook playbooks/migrate-data-to-prod.yml
-}
-
-run_migrate() {
-  echo
-  echo "Migrate source:"
-  echo "  1) From remote server"
-  echo "  2) From local Docker (auto db.dump + uploads)"
-  echo "  0) Back"
-  echo
-  local choice
-  read -r -p "Choice [1/2/0]: " choice
-  case "${choice}" in
-    1) run_migrate_remote ;;
-    2) run_migrate_local ;;
-    0) return 0 ;;
-    *)
-      echo "Unknown choice: ${choice}"
-      exit 1
-      ;;
-  esac
 }
 
 echo
 echo "Ansible — ${ROOT_DIR}"
 echo "=============================="
 echo "  1) Setup production server"
-echo "  2) Migrate data to production"
 echo "  0) Exit"
 echo
-read -r -p "Choice [1/2/0]: " main_choice
+read -r -p "Choice [1/0]: " main_choice
 
 case "${main_choice}" in
   1) run_setup ;;
-  2) run_migrate ;;
   0) exit 0 ;;
   *)
     echo "Unknown choice: ${main_choice}"

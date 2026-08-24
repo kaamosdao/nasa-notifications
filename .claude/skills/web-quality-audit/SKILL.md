@@ -16,8 +16,7 @@ Comprehensive quality review based on Google Lighthouse audits. Covers Performan
 ## In this project
 
 This is the umbrella audit; the **source-of-truth** playbooks for each area are the sibling skills —
-prefer them for concrete fixes: [seo](../seo/SKILL.md), [responsive-images](../responsive-images/SKILL.md),
-[cms-content-rendering](../cms-content-rendering/SKILL.md), [forms](../forms/SKILL.md),
+prefer them for concrete fixes: [seo](../seo/SKILL.md), [forms](../forms/SKILL.md),
 [animation](../animation/SKILL.md), [server-data-fetching](../server-data-fetching/SKILL.md),
 [writing-styles](../writing-styles/SKILL.md), plus [accessibility](../accessibility/SKILL.md),
 [performance](../performance/SKILL.md), [core-web-vitals](../core-web-vitals/SKILL.md),

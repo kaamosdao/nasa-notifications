@@ -15,8 +15,6 @@ import { TransitionLayout } from "@widgets/transition-layout";
 import { Cursor } from "@widgets/сursor";
 import type { AppProps } from "next/app";
 
-import { PreviewBanner } from "@shared/ui/preview-banner";
-
 export default function App({ Component, pageProps, router }: AppProps) {
   useAppViewport();
 
@@ -25,17 +23,9 @@ export default function App({ Component, pageProps, router }: AppProps) {
       <FpsWidget />
       <PerformanceDetect />
       <Gsap />
-      <SeoLayout
-        commonSeoData={pageProps?.cms?.commonData?.seo}
-        pageSeoData={pageProps?.cms?.pageSeoData}
-        organization={pageProps?.cms?.commonData?.organization}
-        socials={pageProps?.cms?.commonData?.socials}
-      >
-        <PreviewBanner isDraftMode={pageProps.isDraftMode} />
+      <SeoLayout pageSeoData={pageProps?.cms?.pageSeoData}>
         <ResizeProvider>
-          <GlobalDataProvider
-            data={{ commonData: pageProps?.cms?.commonData ?? null }}
-          >
+          <GlobalDataProvider data={{}}>
             <Header />
             <Cursor />
             <Preloader />

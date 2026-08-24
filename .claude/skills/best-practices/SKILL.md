@@ -20,7 +20,7 @@ The generic patterns below hold; here's where they actually live in this stack.
   `pnpm prune --prod` (see [docker-images](../docker-images/SKILL.md)).
 - **The real XSS surface is CMS HTML**, not hand-written `innerHTML`. Strapi rich-text/HTML rendered
   on the FE is the DOM-XSS vector, and the project's sanitizer is weak — prefer the React-escaped
-  **Blocks** renderer. This is the source of truth: [cms-content-rendering](../cms-content-rendering/SKILL.md).
+  **Blocks** renderer.
 - **Security headers / CSP / HSTS** are set at the **nginx reverse-proxy** (Ansible
   `templates/nginx.conf`), not via `<meta>` tags — `next.config.js` has no `headers()` today. See
   [ci-deploy](../ci-deploy/SKILL.md). If you add CSP, remember GSAP/inline styles.
@@ -30,7 +30,7 @@ The generic patterns below hold; here's where they actually live in this stack.
 - **Source maps**: controlled by Next's `productionBrowserSourceMaps` (default off), not a webpack
   `devtool`.
 - **Images are never `<img src=http://…>` from CMS** — they go through imgproxy over HTTPS; see
-  [responsive-images](../responsive-images/SKILL.md).
+  the asset rules below.
 - **Error handling / boundaries**: place per FSD layer ([code-conventions](../code-conventions/SKILL.md)).
 
 ## Security

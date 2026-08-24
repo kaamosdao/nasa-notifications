@@ -165,13 +165,12 @@ entities/
 
 **Что содержит**:
 - `ui/` - Базовые UI компоненты (Button, Input, Icon, etc.)
-- `api/` - API клиенты (Strapi client, HTTP client)
+- `api/` - Серверный слой (пул Postgres, оркестратор данных, sitemap, mailer)
 - `hooks/` - Переиспользуемые хуки
 - `utils/` - Утилиты и хелперы
 - `styles/` - Глобальные стили, переменные, миксины
 - `config/` - Конфигурация приложения
 - `types/` - Общие типы
-- `content-types/` - Типы контента из CMS
 
 **Пример структуры**:
 ```
@@ -182,8 +181,9 @@ shared/
 │   ├── icon/
 │   └── ...
 ├── api/
-│   ├── strapi/
-│   └── client.ts
+│   ├── db/
+│   ├── server-data/
+│   └── sitemap/
 ├── hooks/
 ├── utils/
 ├── styles/
@@ -234,15 +234,19 @@ slice-name/
 
 ### `api/` - API методы
 
-Содержит методы для работы с API (запросы к Strapi, внешние API).
+Содержит методы для работы с данными (запросы в Postgres, внешние API).
 
 **Пример**:
 ```typescript
-// entities/article/api/getArticleList.ts
-import { strapiClient } from '@shared/api/strapi';
+// entities/notice/api/get-notices.ts
+import { pool } from '@shared/api/db';
 
-export async function getArticleList() {
-  return strapiClient.get('/api/articles');
+export async function getNotices(limit = 20) {
+  const { rows } = await pool.query(
+    'select * from notices order by received_at desc, id desc limit $1',
+    [limit],
+  );
+  return rows;
 }
 ```
 
@@ -302,7 +306,6 @@ export function ArticleCard({ article }: { article: Article }) {
 | `@entities/*` | `./src/entities/*` | Слой entities |
 | `@shared/*` | `./src/shared/*` | Слой shared |
 | `@shared/types` | `./src/shared/types/index.ts` | Общие типы |
-| `@content/types` | `./src/shared/content-types` | Типы контента |
 
 **Примеры использования**:
 
@@ -400,12 +403,12 @@ export const productSchema = z.object({
 });
 
 // 4. Создаем API методы
-// entities/product/api/getProductList.ts
-import { strapiClient } from '@shared/api/strapi';
+// entities/notice/api/get-notice-list.ts
+import { pool } from '@shared/api/db';
 
-export async function getProductList() {
-  const response = await strapiClient.get('/api/products');
-  return response.data;
+export async function getNoticeList() {
+  const { rows } = await pool.query('select * from notices order by id desc limit 20');
+  return rows;
 }
 
 // 5. Экспортируем Public API

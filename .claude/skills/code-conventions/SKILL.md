@@ -23,7 +23,6 @@ import order are handled by `biome` (`biome.json`), run via `pnpm check`.
 | `@/*` | `src/*` |
 | `@app/*` `@processes/*` `@pages/*` `@widgets/*` `@features/*` `@entities/*` `@shared/*` | the same-named layers in `src/*` |
 | `@shared/types` | `src/shared/types/index.ts` |
-| `@content/types` | `src/shared/content-types` |
 
 Rule: import a slice from **your own layer or below** absolutely via its alias
 (`@shared/ui/button`, `@widgets/header`); **within** a slice, import relatively (`./button`, `../model`).
@@ -37,11 +36,11 @@ Don't rely on them; the general `@shared/* → ./src/shared/*` works.
 
 `shared` → `entities` → `features` → `widgets` → `_pages` → `app`.
 
-- **`shared`** — reusable, domain-agnostic code: `ui/` (primitives), `hooks/`, `utils/`, `api/`, `config/`, `styles/`, `types/`, `content-types/`.
+- **`shared`** — reusable, domain-agnostic code: `ui/` (primitives), `hooks/`, `utils/`, `api/`, `config/`, `styles/`, `types/`.
 - **`entities`** — domain entities (`entities/article` is currently a stub). An extension point.
 - **`features`, `processes`** — **empty** in the boilerplate. Extension points.
 - **`widgets`** — large, self-contained blocks (`header`, `footer`, `preloader`, `scroll`…), composed of primitives.
-- **`_pages`** — FSD page slices (`_pages/home`), holding all of a page's logic. The `_` prefix keeps Next from confusing them with routes.
+- **`_pages`** — FSD page slices (`_pages/feed`), holding all of a page's logic. The `_` prefix keeps Next from confusing them with routes.
 - **`app`** — initialization: providers and global stores (`app/model/{data,ui,viewport}-store`).
 
 Internal slice segments: `ui/` (components + styles), `model/` (stores, types, schemas), `api/` (requests), optionally `hooks/`, `utils/`, `context/`. Each slice re-exports its public surface through `index.ts`.
@@ -56,8 +55,8 @@ boundary. Don't reason in terms of "server/client components."
 
 The real split:
 - **Server code** (runs on the server): `getServerSideProps` in the routes under `src/pages/*`;
-  the `api/` segment functions of slices (`_pages/home/api/getHomePage.ts`); the orchestrator
-  `src/shared/api/strapi/getServerSidePropsData.ts`; Next API routes `src/pages/api/*`.
+  the `api/` segment functions of slices (`entities/notice/api/*`); the orchestrator
+  `src/shared/api/server-data/`; Next API routes `src/pages/api/*`.
   CMS data is fetched **here**, not in components.
 - **Client code**: UI components. Data from `getServerSideProps` is placed into `pageProps.cms`
   and distributed through two zustand contexts (`src/app/model/data-store`): `GlobalDataProvider`/
@@ -65,7 +64,7 @@ The real split:
   `PageDataProvider`/`usePageData` — the current page's data (inside `TransitionLayout`).
   A component reads page data with types: `const { homePage } = usePageData<{ homePage: HomePageProps | null }>()`.
 - Data is assembled by the `getServerSidePropsData` orchestrator (it types the result from the request map,
-  isolates errors per key, and mixes in the cacheable `commonData`) — see [strapi-frontend-typing](../strapi-frontend-typing/SKILL.md).
+  isolates errors per key) — `src/shared/api/server-data/`.
 - `getServerSideProps` is used (per-request SSR). `getStaticProps`/ISR are not used at present.
 
 ## Where business logic lives
@@ -75,7 +74,7 @@ The real split:
 | Global stores (zustand) | `src/app/model/*-store` | `useUiStore`, `useViewportStore`, `useGlobalData`/`usePageData` (data-store) |
 | Slice-local store | the slice's `model/` segment | `widgets/preloader/model/preloaderStore.ts` |
 | Reusable hooks | `src/shared/hooks/use-*.ts` | `use-media.ts`, `use-intersection-observer.ts` |
-| CMS/services | `src/shared/api/*` and slices' `api/` | `api/strapi/*`, `api/mailer/*`, `_pages/home/api` |
+| Data/services | `src/shared/api/*` and slices' `api/` | `api/db/*`, `api/server-data/*`, `api/mailer/*` |
 | Pure utilities | `src/shared/utils/*` | `is.ts` (type guards), `math/`, `debounce.ts` |
 
 Store convention: `state` + a nested `actions` object + a separate hook selector for the actions

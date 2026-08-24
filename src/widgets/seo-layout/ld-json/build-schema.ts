@@ -1,4 +1,4 @@
-import type { LinkSocial, Organization } from "@shared/types/strapi-components";
+import type { LinkSocial, Organization } from "@shared/types/seo";
 
 /**
  * Автоматическая генерация schema.org из полей CMS.

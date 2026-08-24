@@ -6,7 +6,7 @@ alwaysApply: false
 # Best practices
 
 Security, browser compatibility, and code-quality standards, with an **"In this project"** section —
-the real XSS surface is CMS HTML (`cms-content-rendering`), headers live at nginx, tooling is pnpm/biome.
+the real XSS surface is untrusted payload text from GCN, headers live at nginx, tooling is pnpm/biome.
 
 This is a pointer to the project skill. **Open and follow** `.claude/skills/best-practices/SKILL.md`.
-Source-of-truth siblings: `cms-content-rendering`, `ci-deploy`, `animation`, `responsive-images`.
+Source-of-truth siblings: `ci-deploy`, `animation`.
