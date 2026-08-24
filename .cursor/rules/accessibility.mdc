@@ -1,0 +1,12 @@
+---
+description: Accessibility (WCAG 2.2) for this project — sr-only() mixin for hidden text, tokens/mq() for focus & target size, prefers-reduced-motion gating GSAP/Lenis, RHF+Zod form labels/aria via shared/ui primitives, native semantics, lang in _document. Use when asked to "improve accessibility", "a11y audit", "WCAG", "screen reader", "keyboard navigation", "make accessible".
+globs:
+alwaysApply: false
+---
+# Accessibility
+
+WCAG 2.2 audit and fixes, with an **"In this project"** section — hidden text via the existing
+`sr-only()` mixin, motion gated through the `animation` skill, form a11y through the `forms` primitives.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/accessibility/SKILL.md`.
+References: `references/A11Y-PATTERNS.md`, `references/WCAG.md`.

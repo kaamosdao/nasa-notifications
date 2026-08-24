@@ -1,0 +1,12 @@
+---
+description: Strapi 5 custom field with a React UI: plugin structure, registration (server+admin), the Input component, the onChange contract, using it in the schema.
+globs:
+alwaysApply: false
+---
+# Strapi custom field
+
+Strapi 5 custom field with a React UI: plugin structure, registration (server+admin), the Input component, the onChange contract, using it in the schema.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/strapi-custom-field/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.
+Examples and docs: `@strapi/docs/custom-field/`.

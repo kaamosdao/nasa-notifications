@@ -1,0 +1,11 @@
+---
+description: Forms: react-hook-form + Zod (single shared schema) + shared/ui primitives + submission via a Next API route. Greenfield with traps: Input needs Controller (not bare register), @hookform/resolvers missing, mailer handler unrouted.
+globs:
+alwaysApply: false
+---
+# Forms
+
+Forms: react-hook-form + Zod (single shared schema) + shared/ui primitives + submission via a Next API route. Greenfield with traps: Input needs Controller (not bare register), @hookform/resolvers missing, mailer handler unrouted.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/forms/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.

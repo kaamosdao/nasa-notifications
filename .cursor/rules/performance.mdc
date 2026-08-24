@@ -1,0 +1,12 @@
+---
+description: Web performance for this project — image delivery via imgproxy/MediaImage, lru-cache + fields/populate trimming, next/dynamic splitting, SCSS auto-injection, Lenis scroll, nginx asset caching (pnpm/biome, no service worker or web-vitals wired). Use when asked to "speed up the site", "optimize performance", "reduce load time", "fix slow loading".
+globs:
+alwaysApply: false
+---
+# Performance
+
+Loading, runtime, and resource optimization, with an **"In this project"** section pointing each lever
+at where it already lives (imgproxy, lru-cache, next/dynamic, Lenis, nginx).
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/performance/SKILL.md`.
+Source-of-truth siblings: `responsive-images`, `server-data-fetching`, `core-web-vitals`, `animation`.

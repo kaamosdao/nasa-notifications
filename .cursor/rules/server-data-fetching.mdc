@@ -1,0 +1,12 @@
+---
+description: The server request flow to Strapi: getServerSidePropsData orchestrator, error isolation, getCommonData + cache, stores; populate/fields optimization (over-fetch, media, relations, pagination, N+1), sitemap.
+globs:
+alwaysApply: false
+---
+# Server data fetching
+
+The server request flow to Strapi: getServerSidePropsData orchestrator, error isolation, getCommonData + cache, stores; populate/fields optimization (over-fetch, media, relations, pagination, N+1), sitemap.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/server-data-fetching/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.
+Examples and docs: `docs/examples/api-query/`.

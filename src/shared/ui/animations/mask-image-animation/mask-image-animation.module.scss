@@ -1,0 +1,53 @@
+.root {
+  position: relative;
+  --mask-origin-x: 50%;
+  --mask-origin-y: 50%;
+
+  opacity: var(--progress);
+  mask-mode: luminance;
+}
+
+.variant {
+  &-radial {
+    mask-image: radial-gradient(
+      circle at var(--mask-origin-x) var(--mask-origin-y),
+      white lerp(-100%, 100%, var(--progress)),
+      black lerp(0%, 150%, var(--progress))
+    );
+  }
+
+  &-linear {
+    mask-image: linear-gradient(
+      90deg,
+      white lerp(-100%, 100%, var(--progress)),
+      black lerp(0%, 200%, var(--progress))
+    );
+  }
+}
+
+.direction {
+  &-top {
+    --mask-origin-x: 50%;
+    --mask-origin-y: 0%;
+  }
+  &-bottom {
+    --mask-origin-x: 50%;
+    --mask-origin-y: 100%;
+  }
+  &-left {
+    --mask-origin-x: 0%;
+    --mask-origin-y: 50%;
+
+    &-top {
+      --mask-origin-y: 0%;
+    }
+  }
+  &-right {
+    --mask-origin-x: 100%;
+    --mask-origin-y: 50%;
+  }
+  &-center {
+    --mask-origin-x: 50%;
+    --mask-origin-y: 50%;
+  }
+}

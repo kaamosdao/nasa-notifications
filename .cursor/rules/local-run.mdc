@@ -1,0 +1,11 @@
+---
+description: Run the project locally: pnpm dev/build or docker compose (frontend + Strapi + postgres + imgproxy + meilisearch), ports, DB backup, down -v pitfalls.
+globs:
+alwaysApply: false
+---
+# Local run
+
+Run the project locally: pnpm dev/build or docker compose (frontend + Strapi + postgres + imgproxy + meilisearch), ports, DB backup, down -v pitfalls.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/local-run/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.

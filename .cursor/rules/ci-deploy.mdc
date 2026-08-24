@@ -1,0 +1,11 @@
+---
+description: CI/CD and deploy: GitLab variables via gitlab_copy_env.sh, the prepare->build->deploy pipeline, testing/staging/release branches, Ansible server init.
+globs:
+alwaysApply: false
+---
+# Ci deploy
+
+CI/CD and deploy: GitLab variables via gitlab_copy_env.sh, the prepare->build->deploy pipeline, testing/staging/release branches, Ansible server init.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/ci-deploy/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.

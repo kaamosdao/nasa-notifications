@@ -1,0 +1,12 @@
+---
+description: SEO in this project (Next.js Pages Router + Strapi): SeoLayout widget, mergeSeoData fallback chain (page seo → commonData.seo → APP_INFO), meta/OG/Twitter/canonical/robots, widgets.seo component (+noindex), per-environment indexing gate, JSON-LD, sitemap/robots.txt. Use when editing title/description, canonical, Open Graph/social cards, robots/noindex, schema.org, hreflang, or per-page SEO.
+globs:
+alwaysApply: false
+---
+# SEO
+
+SEO in this project (Next.js Pages Router + Strapi): the SeoLayout widget, the mergeSeoData fallback chain (page seo → commonData.seo → APP_INFO), meta/OG/Twitter/canonical/robots tags, the widgets.seo Strapi component (+ noindex), the per-environment indexing gate, JSON-LD, and sitemap/robots.txt.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/seo/SKILL.md` in full —
+it has the fallback-chain rules, the 3-step wiring for a new page type, the studio conventions, and the QA checklist.
+Docs: `docs/14-seo.md`, `docs/12-sitemap.md`.

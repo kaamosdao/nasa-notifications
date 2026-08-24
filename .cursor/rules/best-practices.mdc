@@ -1,0 +1,12 @@
+---
+description: Web best practices (security, compatibility, code quality) for this project — pnpm audit, biome, CMS-HTML XSS via weak sanitizer (prefer Blocks), CSP/HSTS at nginx not meta tags, listener/GSAP cleanup, imgproxy HTTPS images, error boundaries per FSD. Use when asked to "apply best practices", "security audit", "modernize code", "code quality review", "check for vulnerabilities".
+globs:
+alwaysApply: false
+---
+# Best practices
+
+Security, browser compatibility, and code-quality standards, with an **"In this project"** section —
+the real XSS surface is CMS HTML (`cms-content-rendering`), headers live at nginx, tooling is pnpm/biome.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/best-practices/SKILL.md`.
+Source-of-truth siblings: `cms-content-rendering`, `ci-deploy`, `animation`, `responsive-images`.

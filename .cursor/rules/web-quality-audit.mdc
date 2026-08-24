@@ -1,0 +1,12 @@
+---
+description: Umbrella web-quality audit (performance, accessibility, SEO, best practices) adapted to this stack — Pages Router, imgproxy/MediaImage, SCSS modules, GSAP/Lenis, pnpm/biome, nginx headers, SeoLayout. Use when asked to "audit my site", "web quality review", "lighthouse audit", "check page quality".
+globs:
+alwaysApply: false
+---
+# Web quality audit
+
+Umbrella audit over performance, accessibility, SEO, and best practices, with an **"In this project"**
+section mapping generic Lighthouse advice onto this stack and linking the source-of-truth skills.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/web-quality-audit/SKILL.md`.
+Note: `scripts/analyze.sh` scans static HTML — run it against the served dev server, not `.tsx` sources.

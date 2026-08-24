@@ -1,0 +1,12 @@
+---
+description: Create a React component: folder name.tsx + name.module.scss + index.ts, type <Name>Props, named export + displayName, variants via mod()+clsx, FSD placement.
+globs:
+alwaysApply: false
+---
+# Creating a component
+
+Create a React component: folder name.tsx + name.module.scss + index.ts, type <Name>Props, named export + displayName, variants via mod()+clsx, FSD placement.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/creating-a-component/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.
+Examples and docs: `docs/examples/`.

@@ -1,0 +1,12 @@
+---
+description: Core Web Vitals (LCP/INP/CLS) for this project — SSR data, LCP hero via MediaImage loading="eager"/fetchPriority (NOT next/image), CLS-safe width/height from MediaWithBreakpoints, transform-only GSAP with reduced-motion, zustand + next/dynamic. Use when asked to "improve Core Web Vitals", "fix LCP", "reduce CLS", "optimize INP", "fix layout shifts".
+globs:
+alwaysApply: false
+---
+# Core Web Vitals
+
+LCP / INP / CLS optimization, with an **"In this project"** section — the key correction is that images
+go through `MediaImage` + imgproxy, **not** `next/image`.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/core-web-vitals/SKILL.md`.
+Source-of-truth siblings: `responsive-images`, `server-data-fetching`, `animation`.

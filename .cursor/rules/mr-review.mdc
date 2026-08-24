@@ -1,0 +1,12 @@
+---
+description: Senior frontend MR/PR review — only Blocker/Major, each item what's-wrong → why → how-to-fix, review output in Russian, an empty review is fine. Triggers: 'review this MR/PR/diff'.
+globs:
+alwaysApply: false
+---
+# Mr review
+
+Senior frontend MR/PR review — only Blocker/Major, each item what's-wrong → why → how-to-fix, review output in Russian, an empty review is fine. Triggers: 'review this MR/PR/diff'.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/mr-review/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.
+Note: the review itself is written in Russian (the team's audience).

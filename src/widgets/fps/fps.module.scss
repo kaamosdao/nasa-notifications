@@ -1,0 +1,41 @@
+.root {
+  position: fixed;
+  z-index: 9999;
+  padding: 6px 10px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+  pointer-events: none;
+  user-select: none;
+
+  &.topLeft {
+    top: 12px;
+    left: 12px;
+  }
+
+  &.topRight {
+    top: 12px;
+    right: 12px;
+  }
+
+  &.bottomLeft {
+    bottom: 12px;
+    left: 12px;
+  }
+
+  &.bottomRight {
+    bottom: 12px;
+    right: 12px;
+  }
+}
+
+.value {
+  font-weight: 600;
+}
+
+.label {
+  opacity: 0.8;
+}

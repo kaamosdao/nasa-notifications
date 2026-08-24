@@ -1,0 +1,79 @@
+// Companion-стили к component.example.tsx + эталон написания SCSS-модуля.
+// Живой аналог: src/shared/ui/styled-button/styled-button.module.scss
+//
+// Соглашения:
+//  1. Миксины (mq, transition, hover, typography-пресеты) и функции (vw, rem, between)
+//     доступны БЕЗ импорта — next.config.js инжектит `@use 'helpers' as *;` в каждый .scss.
+//  2. Токены — CSS custom properties: --spacing-*, --radius-*, --c-*, --text-*, --z-*.
+//     Объявлены в :root (src/shared/styles/vars/*). В модуле их только читаем через var().
+//  3. Размеры из макета переводим в адаптивные единицы функцией vw(px).
+//  4. Медиазапросы — ТОЛЬКО через миксин mq($bp) (desktop-first, max-width - 1px).
+//     Брейкпоинты: xs sm md lg xl 2xl (см. src/shared/styles/vars/_breakpoints.scss).
+//  5. Модификаторы — вложенные классы через `&`, имена совпадают со значениями пропсов
+//     (variant="primary" → `.variant { &Primary {} }`). Иначе mod() не найдёт класс.
+//  6. Порядок свойств не линтится (stylelint нет) — держим ручной: позиционирование →
+//     блочная модель → отступы → типографика → визуал → transition.
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  column-gap: var(--spacing-8);
+  padding: var(--spacing-8) var(--spacing-16);
+  border-radius: var(--radius-base-sm);
+  color: var(--btn-color);
+
+  @include transition((color, background-color));
+
+  @include mq(md) {
+    padding: vw(10) var(--spacing-12);
+  }
+}
+
+.body {
+  display: block;
+
+  @include btnS();
+}
+
+.size {
+  &S {
+    --btn-color: var(--text-primary-dark);
+
+    padding: var(--spacing-4) var(--spacing-8);
+  }
+
+  &M {
+    padding: var(--spacing-8) var(--spacing-16);
+  }
+
+  &L {
+    padding: var(--spacing-12) var(--spacing-24);
+  }
+}
+
+.variant {
+  &Primary {
+    background-color: var(--background-button-primary);
+
+    &:not([disabled]) {
+      @include hover {
+        background-color: var(--background-button-primary-hover);
+      }
+    }
+  }
+
+  &Secondary {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 1px var(--c-graphite);
+  }
+}
+
+.colorScheme {
+  &Light {
+    --btn-color: var(--text-primary-dark);
+  }
+
+  &Dark {
+    --btn-color: var(--text-primary-white);
+  }
+}

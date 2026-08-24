@@ -1,0 +1,11 @@
+---
+description: Build frontend/backend Docker images: multi-stage Dockerfile, BuildKit --secret, switching npm to the RU mirror, the Strapi entrypoint.
+globs:
+alwaysApply: false
+---
+# Docker images
+
+Build frontend/backend Docker images: multi-stage Dockerfile, BuildKit --secret, switching npm to the RU mirror, the Strapi entrypoint.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/docker-images/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.

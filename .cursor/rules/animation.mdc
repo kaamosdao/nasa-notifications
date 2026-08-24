@@ -1,0 +1,11 @@
+---
+description: Animation in this project (GSAP + Lenis + ScrollTrigger + transition-layout): central plugin registration, scroll via useScroll (not window), and cleanup discipline (kill/revert on unmount). Reuse Animate/SplitText/TransitionLayout.
+globs:
+alwaysApply: false
+---
+# Animation
+
+Animation in this project (GSAP + Lenis smooth scroll + ScrollTrigger bound to #scroll + page transitions): central plugin registration, consuming scroll via useScroll/useElementLenisPosition (not window), and cleanup discipline (kill/revert tweens/ScrollTriggers/observers/listeners on unmount).
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/animation/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.

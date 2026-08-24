@@ -1,0 +1,12 @@
+---
+description: Custom Strapi 5 routes/controllers: routes[]+handler+config, extending the core controller, ctx (request/state/params), response format, permissions.
+globs:
+alwaysApply: false
+---
+# Custom strapi route controller
+
+Custom Strapi 5 routes/controllers: routes[]+handler+config, extending the core controller, ctx (request/state/params), response format, permissions.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/custom-strapi-route-controller/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.
+Examples and docs: `@strapi/docs/routes-controllers/`.

@@ -1,0 +1,12 @@
+---
+description: Create a reusable Strapi component: file structure, component vs Content Type, attaching to an entity, naming/grouping, the list of ready-made components.
+globs:
+alwaysApply: false
+---
+# Creating strapi component
+
+Create a reusable Strapi component: file structure, component vs Content Type, attaching to an entity, naming/grouping, the list of ready-made components.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/creating-strapi-component/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.
+Examples and docs: `@strapi/docs/`.

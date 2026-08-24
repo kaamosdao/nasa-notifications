@@ -1,0 +1,12 @@
+---
+description: Project typing: where types live, file naming (types.ts), the domain/api/ui split, utility types (Nullable/Brand/ApiList/DynamicProps).
+globs:
+alwaysApply: false
+---
+# Project typing
+
+Project typing: where types live, file naming (types.ts), the domain/api/ui split, utility types (Nullable/Brand/ApiList/DynamicProps).
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/project-typing/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.
+Examples and docs: `docs/examples/`.

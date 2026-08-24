@@ -1,0 +1,12 @@
+---
+description: Styles: SCSS modules, auto-injected mixins/functions (next.config), CSS variable tokens, vw() for responsive sizing, the mq() mixin, typography presets.
+globs:
+alwaysApply: false
+---
+# Writing styles
+
+Styles: SCSS modules, auto-injected mixins/functions (next.config), CSS variable tokens, vw() for responsive sizing, the mq() mixin, typography presets.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/writing-styles/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.
+Examples and docs: `docs/examples/`.

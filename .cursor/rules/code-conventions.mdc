@@ -1,0 +1,12 @@
+---
+description: Frontend code conventions: FSD layers and aliases, import order (biome), the Pages Router data model (getServerSideProps + zustand, NOT RSC), where logic lives, naming.
+globs:
+alwaysApply: false
+---
+# Code conventions
+
+Frontend code conventions: FSD layers and aliases, import order (biome), the Pages Router data model (getServerSideProps + zustand, NOT RSC), where logic lives, naming.
+
+This is a pointer to the project skill. **Open and follow** `.claude/skills/code-conventions/SKILL.md` in full —
+it has the complete playbook with commands, patterns, and pitfalls.
+Examples and docs: `docs/examples/`.

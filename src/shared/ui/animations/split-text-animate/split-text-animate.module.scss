@@ -1,0 +1,10 @@
+.root {
+  position: relative;
+
+  &.disableClip {
+    :global(.word),
+    :global(.char) {
+      clip-path: none;
+    }
+  }
+}
