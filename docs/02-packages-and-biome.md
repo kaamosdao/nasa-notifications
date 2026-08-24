@@ -6,7 +6,7 @@
 
 ### Основной стек
 
-- **Next.js 15.5.7** - React фреймворк с SSR/SSG
+- **Next.js 15.5.23** - React фреймворк с SSR/SSG
 - **React 19.2.1** - Библиотека для построения UI
 - **TypeScript 5.9.2** - Статическая типизация
 - **Sass 1.92.1** - CSS препроцессор
@@ -20,19 +20,16 @@
 
 - **GSAP 3.13.0** - Профессиональные анимации
 - **Lenis 1.3.11** - Плавный скролл
-- **Swiper 12.0.2** - Слайдеры и карусели
 - **react-hook-form 7.65.0** - Работа с формами
 
 ### API и контент
 
 - **pg 8.23.0** - Драйвер PostgreSQL (пул соединений, `LISTEN/NOTIFY`)
-- **ky 1.10.0** - HTTP клиент
 - **html-react-parser 5.2.7** - Парсинг HTML
 
 ### Утилиты
 
 - **clsx 2.1.1** - Условные CSS классы
-- **typograf 7.6.0** - Типографика
 - **ua-parser-js 2.0.6** - Парсинг User-Agent
 
 ## 🔧 Biome - Линтер и форматтер
@@ -240,15 +237,15 @@
 // ❌ До организации
 import { useState } from 'react';
 import { Button } from '@shared/ui/button';
-import { getArticleList } from '@entities/article/api';
-import axios from 'axios';
+import { getNotices } from '@entities/notice/api';
+import clsx from 'clsx';
 import styles from './component.module.scss';
 
 // ✅ После организации (автоматически)
 import { useState } from 'react';
-import axios from 'axios';
+import clsx from 'clsx';
 
-import { getArticleList } from '@entities/article/api';
+import { getNotices } from '@entities/notice/api';
 
 import { Button } from '@shared/ui/button';
 
@@ -389,7 +386,7 @@ let mutable = 1;
 
 1. **Удалите старые зависимости**:
 ```bash
-pnpm remove eslint prettier eslint-config-next
+pnpm remove eslint prettier eslint-config-next  # если они ещё стоят
 ```
 
 2. **Установите Biome**:
@@ -408,7 +405,7 @@ pnpm add -D @biomejs/biome
 
 ## 📚 Другие ключевые пакеты
 
-### Next.js 15.5.7
+### Next.js 15.5.23
 
 **Назначение**: React фреймворк для продакшн-приложений
 

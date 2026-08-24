@@ -11,7 +11,7 @@ description: >-
 
 # Forms (react-hook-form + Zod)
 
-**Status: greenfield.** `react-hook-form`, `zod`, `nodemailer`, `axios`, `ky` are in `package.json`,
+**Status: greenfield.** `react-hook-form`, `zod` and `nodemailer` are in `package.json`,
 but there is **no real form in `src/`** — RHF is never called, the mailer handler isn't routed, and
 the form Zod schema is a stub. Below is the canonical pattern plus the traps to fix first.
 
@@ -85,7 +85,7 @@ export { default } from "@shared/api/mailer/mailer";
 `sendEmail` needs SMTP env: `SMTP_HOST/PORT/USER/PASSWORD/SECURE`, `SMTP_CONTACT_FORM_EMAIL`.
 Validate `req.body` with the **same** `contactSchema` (`.parse` → catch `ZodError` → 400).
 
-There is **no shared HTTP client** (`shared/api/client.ts` doesn't exist; `axios`/`ky` are unused) —
+There is **no shared HTTP client** (`shared/api/client.ts` doesn't exist, and no HTTP library is installed) —
 call the route with plain `fetch`.
 
 ## Pitfalls
