@@ -1,4 +1,9 @@
+packages:
+  - "services/*"
+
 allowBuilds:
+  # нативный zstd тянет gcn-kafka: часть топиков GCN приходит сжатой
+  "@mongodb-js/zstd": true
   "@swc/core": true
   "@parcel/watcher": true
   core-js-pure: true

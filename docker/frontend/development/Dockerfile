@@ -19,7 +19,9 @@ ENV PORT=3000
 WORKDIR /app
 
 # Copy package files
+# Манифесты пакетов воркспейса обязательны: без них pnpm --frozen-lockfile падает
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY services/ingestor/package.json ./services/ingestor/
 COPY .env* ./
 
 # Install dependencies with mount cache

@@ -23,8 +23,11 @@ imgproxy и Meilisearch удалены из кода, compose и CI. Хвост 
 - **Frontend**: Next.js 15, **Pages Router**, архитектура Feature-Sliced Design (`src/`).
   TypeScript, SCSS-модули, zustand, Zod. GSAP + Lenis для анимаций, WebGL2 (сырой, без three.js)
   для hero-сцены.
-- **Ingestor**: отдельный Node-сервис (`services/ingestor`) — единственный потребитель Kafka
-  через `gcn-kafka`, нормализует сообщения и пишет в Postgres.
+- **Ingestor**: отдельный Node-сервис (`services/ingestor`, пакет pnpm-воркспейса) —
+  единственный потребитель Kafka через `gcn-kafka` **0.3.0** (на `kafkajs`; версия 1.x перешла
+  на нативный librdkafka — в alpine это сборка из исходников, поэтому не обновляем).
+  Нормализует сообщения и пишет в Postgres, миграции (`services/ingestor/sql/*.sql`) применяет
+  сам при старте.
 - **Данные**: Postgres. Реалтайм в браузер — SSE поверх `LISTEN/NOTIFY`.
 - **Инфра**: Docker Compose, GitLab CI (ci-components), Ansible. Пакетный менеджер — pnpm.
 
@@ -34,6 +37,8 @@ imgproxy и Meilisearch удалены из кода, compose и CI. Хвост 
 pnpm dev            # фронт (next dev, :3000)
 pnpm build          # next build
 pnpm check          # biome: линт + формат + порядок импортов (запускай после правок)
+pnpm ingestor:dev   # воркер Kafka → Postgres (миграции применяются при старте)
+pnpm --filter ingestor seed --loop   # моковый продюсер: событие раз в 2 с без Kafka
 docker compose up -d         # весь стек локально (нужен .env, PROJECT_SLUG, ENVIRONMENT)
 ```
 

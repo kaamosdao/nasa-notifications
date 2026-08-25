@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "ingestor:dev": "pnpm --filter ingestor dev",
+    "ingestor:build": "pnpm --filter ingestor build",
     "lint": "biome check",
     "format": "biome format --write",
     "check": "biome check --write"

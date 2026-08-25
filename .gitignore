@@ -2,6 +2,10 @@
 
 # dependencies
 /node_modules
+/services/*/node_modules
+
+# ingestor build
+/services/*/dist
 /.pnp
 .pnp.*
 .yarn/*

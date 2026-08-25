@@ -17,9 +17,12 @@ RUN echo "registry=${NPM_REGISTRY}" > .npmrc
 # Отдельный слой для зависимостей (кешируемый)
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Манифест ingestor'а нужен для --frozen-lockfile, но сами его зависимости
+# в образ фронта не ставим — отсюда фильтр по корневому пакету.
+COPY services/ingestor/package.json ./services/ingestor/
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-  pnpm install --frozen-lockfile
+  pnpm install --frozen-lockfile --filter nasa-notifications
 
 # Сборка Next
 FROM base AS builder

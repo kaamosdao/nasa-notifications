@@ -21,6 +21,28 @@ services:
       retries: 5
       start_period: 10s
 
+  ingestor:
+    container_name: ${PROJECT_SLUG}_ingestor
+    build:
+      context: .
+      dockerfile: ./docker/ingestor/${ENVIRONMENT}/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./services/ingestor:/app/services/ingestor
+      - ingestor-node-modules:/app/services/ingestor/node_modules
+    networks:
+      - internal
+    env_file:
+      - ./.env
+    environment:
+      # внутри compose Postgres доступен по имени сервиса, а не по localhost
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # consumer.disconnect() по SIGTERM: иначе ребалансировка группы висит до таймаута
+    stop_grace_period: 20s
+
   frontend:
     container_name: ${PROJECT_SLUG}_frontend
     build:
@@ -50,6 +72,8 @@ volumes:
     name: ${PROJECT_SLUG}_frontend-node-modules
   frontend-next:
     name: ${PROJECT_SLUG}_frontend-next
+  ingestor-node-modules:
+    name: ${PROJECT_SLUG}_ingestor-node-modules
 
 networks:
   internal:

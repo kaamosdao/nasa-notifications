@@ -3,8 +3,12 @@
 Рабочий план проекта. Источник правды по архитектурным решениям — этот файл;
 детали реализации по мере готовности переезжают в профильные документы и скиллы.
 
-Статус: **этап 0 выполнен** — CMS-слой, imgproxy и Meilisearch удалены из кода, compose, CI и
-ansible; каркас собирается. Следующий — этап 1 (`services/ingestor`).
+Статус: **этапы 0 и 1 выполнены.** Этап 0 — CMS-слой, imgproxy и Meilisearch удалены из кода,
+compose, CI и ansible. Этап 1 — `services/ingestor` собран: парсеры, дедуп, catch-up, миграции,
+Dockerfile, сервис в compose, моковый продюсер (`pnpm --filter ingestor seed --loop`).
+⚠️ Живой прогон против Kafka не выполнен: пара `GCN_CLIENT_ID`/`GCN_CLIENT_SECRET` из переписки
+отвергается брокером (`invalid_client`) — нужны перевыпущенные креды с gcn.nasa.gov.
+Следующий — этап 2 (API).
 
 ## 1. Что делаем
 
@@ -251,12 +255,28 @@ Fullscreen-треугольник, один фрагментный шейдер 
 
 **Проверка:** `pnpm dev`, `pnpm check`, `tsc --noEmit -p tsconfig.json` — зелёные.
 
-### Этап 1 — ingestor
+### Этап 1 — ingestor ✅
 
 Пакет `services/ingestor`, `gcn-kafka` + `pg`, парсеры, дедуп, catch-up, healthcheck,
 Dockerfile, сервис в compose, миграции БД.
 
 **Проверка:** строки появляются в `notices`, heartbeat тикает, повторный запуск не плодит дубли.
+
+Что сделано и на что смотреть:
+
+- **`gcn-kafka` зафиксирован на `0.3.0`** (поверх `kafkajs`). В `1.0.0` библиотека переехала
+  на `@confluentinc/kafka-javascript` — это нативный librdkafka, который в alpine-образе
+  пришлось бы собирать из исходников. Не обновлять без нужды.
+- `@mongodb-js/zstd` (транзитивный, часть топиков сжата) внесён в `allowBuilds`
+  `pnpm-workspace.yaml` — иначе pnpm блокирует его install-скрипт и импорт падает.
+- Миграции — обычные `.sql` в `services/ingestor/sql/`, применяются при старте воркера с
+  отметкой в `schema_migrations`. Отдельной библиотеки миграций нет намеренно.
+- `event.skymap` из `igwn.gwalert` вырезается перед записью: это base64-FITS в несколько
+  мегабайт на сообщение.
+- Вставка батчем: один `INSERT ... ON CONFLICT DO NOTHING` + `pg_notify` внутри того же
+  CTE — уведомление уходит только по реально добавленным строкам.
+- Моковый продюсер `pnpm --filter ingestor seed [--loop]` гоняет фикстуры через боевые
+  парсеры (нужен этапу 3: GCN молчит часами).
 
 ### Этап 2 — API
 

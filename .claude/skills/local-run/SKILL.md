@@ -11,7 +11,7 @@ description: >-
 # Local build and run
 
 Node from `.nvmrc` = `v22.17.0`, package manager — pnpm. The frontend lives at the root;
-the Kafka consumer will live in `services/ingestor` as a pnpm-workspace package.
+the Kafka consumer lives in `services/ingestor` as a pnpm-workspace package.
 Details — `docs/04-docker-compose.md`.
 
 There are two paths: **native** (fast hot-reload, convenient for coding) and **Docker Compose**
@@ -25,6 +25,9 @@ docker compose up -d postgres
 
 # frontend, from the root
 pnpm install && pnpm dev                         # http://localhost:3000
+
+# Kafka consumer (applies the SQL migrations from services/ingestor/sql on startup)
+pnpm ingestor:dev
 ```
 
 In `.env`, `DATABASE_URL` must point at `localhost` (not `postgres`) — the service name only
@@ -54,8 +57,16 @@ point where the cause would be obvious.
 ## The GCN stream in dev
 
 GCN can stay silent for hours, so an empty feed is **not** evidence that something is broken.
-For anything animation- or layout-related, drive the feed from a mock producer that inserts a
-row every couple of seconds rather than waiting on the real stream.
+For anything animation- or layout-related, drive the feed from the mock producer instead of
+waiting on the real stream — it runs the same parsers and writes the same rows, no Kafka needed:
+
+```bash
+pnpm --filter ingestor seed          # one batch of three formats (gw / circular / classic text)
+pnpm --filter ingestor seed --loop   # one event every 2 seconds
+```
+
+`GCN_CLIENT_ID` / `GCN_CLIENT_SECRET` must be a live pair from gcn.nasa.gov — a revoked one
+fails at startup with `invalid_client` from the broker, before any topic is subscribed.
 
 ## Useful commands
 
