@@ -1,0 +1,76 @@
+.root {
+  position: fixed;
+  inset: 0;
+  // Между канвасом (0) и хедером: слой intro перекрывает hero, но не навигацию.
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-32);
+  // Курсорный шар должен следить за мышью и над текстом.
+  pointer-events: none;
+
+  @include mq(md) {
+    padding: var(--spacing-16);
+  }
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  row-gap: var(--spacing-20);
+  max-width: vw(880);
+  text-align: center;
+}
+
+.title {
+  color: var(--main-text-color);
+
+  @include accentM();
+
+  // Символы уходят вверх — верхний край подрезаем, чтобы они не наезжали на пустоту.
+  :global(.word) {
+    clip-path: inset(-2% -8% -14% -8%);
+  }
+
+  @include mq(md) {
+    @include h2();
+  }
+}
+
+.subtitle {
+  max-width: vw(520);
+  color: var(--feed-text-muted);
+
+  @include body-paragraph-secondary();
+
+  @include mq(md) {
+    max-width: none;
+  }
+}
+
+.action {
+  pointer-events: auto;
+}
+
+.button {
+  padding: vw(14) vw(32);
+  color: var(--main-text-color);
+  background-color: rgb(255 255 255 / 6%);
+  border: 1px solid var(--feed-card-border);
+  border-radius: vw(999);
+  cursor: pointer;
+
+  @include btnM();
+  @include transition((background-color, border-color));
+
+  @include hover {
+    background-color: rgb(255 255 255 / 12%);
+    border-color: rgb(255 255 255 / 24%);
+  }
+
+  @include mq(md) {
+    padding: vw(16) vw(28);
+  }
+}

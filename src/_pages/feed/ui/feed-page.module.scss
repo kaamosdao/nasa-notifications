@@ -1,15 +1,20 @@
 .root {
   position: relative;
+  // Стартовое состояние фазы intro: до первого кадра JS ленту не видно и таб её не берёт.
+  // Дальше видимостью владеет GSAP (autoAlpha) — инлайн-стили перекрывают этот класс.
+  visibility: hidden;
+  opacity: 0;
   // Канвас hero — fixed-слой с z-index 0; страница обязана лежать над ним явно.
   z-index: 1;
   display: flex;
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  padding: var(--spacing-32);
+  // Сверху — место под фиксированный хедер: иначе заголовок ленты лежит прямо под ним.
+  padding: var(--spacing-88) var(--spacing-32) var(--spacing-32);
 
   @include mq(md) {
-    padding: var(--spacing-16);
+    padding: var(--spacing-64) var(--spacing-16) var(--spacing-16);
   }
 }
 

@@ -83,6 +83,10 @@ an empty feed still shows the metaball over the starfield. If it stays black, ch
 The canvas pauses its rAF loop when the tab is hidden — a background tab measuring 0 FPS is correct,
 not a hang.
 
+The page opens on the intro phase: the feed is present in the DOM but hidden (`visibility: hidden`
++ `inert`) until "Открыть поток" is pressed. `Esc` or "↑ К началу" in the header goes back. If the
+feed looks missing, check the phase before suspecting the DB.
+
 `/api/health` answers `status: "unknown"` while only the seed producer has run — the seed
 writes rows but no heartbeat; `service_state` is touched by the real worker only.
 

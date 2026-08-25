@@ -17,6 +17,8 @@ uniform float uCamZ;
 uniform float uScale;
 uniform float uEnvIntensity;
 uniform vec2 uParallax;
+/** Сдвиг камеры в мире: в фоновой фазе уводит шар из-под ленты. */
+uniform vec2 uOffset;
 
 out vec4 fragColor;
 
@@ -148,7 +150,7 @@ vec3 env(vec3 rd) {
 void main() {
   vec2 uv = (gl_FragCoord.xy * 2.0 - uResolution) / uResolution.y;
 
-  vec3 ro = vec3(0.0, 0.0, uCamZ);
+  vec3 ro = vec3(uOffset, uCamZ);
   vec3 rd = normalize(vec3(uv * FOV, -1.0));
 
   float t = 0.0;

@@ -11,6 +11,7 @@ const UNIFORM_NAMES = [
   "uScale",
   "uEnvIntensity",
   "uParallax",
+  "uOffset",
 ] as const;
 
 type UniformName = (typeof UNIFORM_NAMES)[number];
@@ -26,10 +27,23 @@ const QUALITY_BY_PERFORMANCE_INDEX = [1, 0.85, 0.7, 0.6, 0.5, 0.45];
 
 const PHASE_TARGETS: Record<
   HeroPhase,
-  { camZ: number; scale: number; envIntensity: number; resolution: number }
+  {
+    camZ: number;
+    scale: number;
+    envIntensity: number;
+    resolution: number;
+    /** Сдвиг камеры в долях полуширины кадра: шар уходит из-под ленты влево. */
+    offsetX: number;
+  }
 > = {
-  intro: { camZ: 3.2, scale: 1, envIntensity: 1, resolution: 1 },
-  background: { camZ: 4.6, scale: 0.72, envIntensity: 0.45, resolution: 0.6 },
+  intro: { camZ: 3.2, scale: 1, envIntensity: 1, resolution: 1, offsetX: 0 },
+  background: {
+    camZ: 4.6,
+    scale: 0.72,
+    envIntensity: 0.45,
+    resolution: 0.6,
+    offsetX: 0.62,
+  },
 };
 
 /** Скорость подтягивания uniform'ов к целям фазы (доля остатка в секунду). */
@@ -99,6 +113,7 @@ export class HeroRenderer {
   private scale = PHASE_TARGETS.intro.scale;
   private envIntensity = PHASE_TARGETS.intro.envIntensity;
   private resolutionScale = PHASE_TARGETS.intro.resolution;
+  private offsetX = PHASE_TARGETS.intro.offsetX;
 
   /** CSS-размеры канваса: держим от ResizeObserver, чтобы не читать layout каждый кадр. */
   private cssWidth = 0;
@@ -305,6 +320,17 @@ export class HeroRenderer {
     this.scale += (target.scale - this.scale) * factor;
     this.envIntensity += (target.envIntensity - this.envIntensity) * factor;
     this.resolutionScale += (target.resolution - this.resolutionScale) * factor;
+    this.offsetX += (target.offsetX - this.offsetX) * factor;
+  }
+
+  /**
+   * Сдвиг задан в долях полуширины кадра, а не в мировых единицах: иначе на узком экране
+   * шар уезжал бы за границу вместе с ростом мировой ширины.
+   */
+  private getWorldOffsetX(): number {
+    const aspect = this.canvas.width / Math.max(1, this.canvas.height);
+
+    return this.offsetX * aspect * FOV * this.camZ;
   }
 
   /** Куда тянется курсорный шар: к указателю, а без него — обратно на орбиту. */
@@ -318,7 +344,7 @@ export class HeroRenderer {
     const reach = FOV * this.camZ;
 
     return [
-      this.pointer[0] * aspect * reach,
+      this.getWorldOffsetX() + this.pointer[0] * aspect * reach,
       this.pointer[1] * reach,
       CURSOR_PLANE_Z,
     ];
@@ -373,6 +399,7 @@ export class HeroRenderer {
     gl.uniform1f(this.uniforms.uScale, this.scale);
     gl.uniform1f(this.uniforms.uEnvIntensity, this.envIntensity);
     gl.uniform2f(this.uniforms.uParallax, this.pointer[0], this.pointer[1]);
+    gl.uniform2f(this.uniforms.uOffset, this.getWorldOffsetX(), 0);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }

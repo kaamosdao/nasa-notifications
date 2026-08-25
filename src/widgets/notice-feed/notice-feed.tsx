@@ -13,6 +13,8 @@ import { gsap } from "gsap";
 
 import { NoticeCard } from "@entities/notice";
 
+import { prefersReducedMotion } from "@shared/utils/prefers-reduced-motion";
+
 import s from "./notice-feed.module.scss";
 
 /** Дальше этого от низа считаем, что пользователь читает историю, и ленту не дёргаем. */
@@ -143,11 +145,7 @@ export const NoticeFeed = (props: NoticeFeedProps) => {
     } else if (isPrepend) {
       container.scrollTop += container.scrollHeight - prevScrollHeight.current;
     } else if (newNodes.length) {
-      const reduced = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
-
-      if (reduced) {
+      if (prefersReducedMotion()) {
         if (isAtBottom.current) {
           scrollToBottom(false);
         }

@@ -5,6 +5,7 @@ import { usePerformanceStore } from "@widgets/performance-detect";
 import clsx from "clsx";
 
 import { mod } from "@shared/utils/css-mods";
+import { prefersReducedMotion } from "@shared/utils/prefers-reduced-motion";
 
 import { HeroRenderer, isWebgl2Supported } from "./lib/renderer";
 import { useHeroPhase } from "./model/hero-store";
@@ -14,9 +15,6 @@ import s from "./hero-metaballs.module.scss";
 export type HeroMetaballsProps = {
   className?: string;
 };
-
-const prefersReducedMotion = (): boolean =>
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * Канвас живёт в layout, выше страницы в дереве: при переходе intro → background

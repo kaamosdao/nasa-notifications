@@ -6,6 +6,7 @@ import { AppHooks } from "@widgets/app-hooks/app-hooks";
 import { FpsWidget } from "@widgets/fps";
 import { Gsap } from "@widgets/gsap";
 import { Header } from "@widgets/header";
+import { HeroIntro } from "@widgets/hero-intro";
 import { HeroMetaballs } from "@widgets/hero-metaballs";
 import { PerformanceDetect } from "@widgets/performance-detect";
 import { Preloader } from "@widgets/preloader";
@@ -13,7 +14,6 @@ import { ResizeProvider } from "@widgets/resize";
 import { Scroll } from "@widgets/scroll";
 import { SeoLayout } from "@widgets/seo-layout";
 import { TransitionLayout } from "@widgets/transition-layout";
-import { Cursor } from "@widgets/сursor";
 import type { AppProps } from "next/app";
 
 export default function App({ Component, pageProps, router }: AppProps) {
@@ -29,8 +29,12 @@ export default function App({ Component, pageProps, router }: AppProps) {
           <GlobalDataProvider data={{}}>
             {/* Выше страницы в дереве: контекст WebGL переживает переход фаз и роутинг. */}
             <HeroMetaballs />
+            <HeroIntro />
             <Header />
-            <Cursor />
+            {/*
+              DOM-курсор из boilerplate убран: он рисовал название своего типа («default»)
+              поверх hero, а роль курсора здесь играет шар в шейдере.
+            */}
             <Preloader />
             <Scroll root wrapper>
               <TransitionLayout router={router}>

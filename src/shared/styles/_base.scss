@@ -27,3 +27,17 @@ body {
   background-color: var(--main-background-color);
   color: var(--main-text-color);
 }
+/*
+ * Системная настройка выключает и CSS-переходы: JS-анимации мы гасим сами
+ * (`prefersReducedMotion`), но затухания слоёв живут в стилях.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

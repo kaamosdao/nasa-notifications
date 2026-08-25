@@ -1,63 +1,51 @@
 .root {
   position: fixed;
   z-index: var(--z-header);
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  column-gap: var(--spacing-16);
   width: 100%;
   padding: var(--spacing-20) var(--spacing-32);
-
-  @include transition((background-color));
+  color: var(--main-text-color);
 
   @include mq(lg) {
     padding: vw(14) var(--spacing-20);
   }
 
   @include mq(md) {
-    grid-template-columns: repeat(2, 1fr);
     padding: vw(10) var(--spacing-16);
   }
-
-  &.filled {
-    background-color: var(--background-surface-page);
-  }
 }
 
-.logo {
-  position: relative;
-  width: vw(208);
-
-  svg {
-    width: 100%;
-    height: auto;
-  }
-
-  @include mq(lg) {
-    width: vw(192);
-  }
-
-  @include mq(md) {
-    width: vw(164);
-  }
+.mark {
+  @include captionM();
 }
 
-.item {
+.back {
   display: flex;
   align-items: center;
+  column-gap: var(--spacing-8);
+  padding: vw(8) vw(16);
+  color: var(--main-text-color);
+  background-color: rgb(255 255 255 / 6%);
+  border: 1px solid var(--feed-card-border);
+  border-radius: vw(999);
+  opacity: 0;
+  cursor: pointer;
 
-  &:nth-child(2):not(:last-child) {
-    justify-content: center;
+  @include btnS();
+  @include transition((opacity, background-color));
 
-    @include mq(md) {
-      justify-content: flex-end;
-    }
+  @include hover {
+    background-color: rgb(255 255 255 / 12%);
   }
+}
 
-  &:last-child {
-    justify-content: flex-end;
+.visible {
+  opacity: 1;
+}
 
-    @include mq(md) {
-      display: none;
-    }
-  }
+.hint {
+  color: var(--feed-text-muted);
 }
