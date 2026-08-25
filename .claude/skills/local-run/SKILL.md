@@ -65,6 +65,17 @@ pnpm --filter ingestor seed          # one batch of three formats (gw / circular
 pnpm --filter ingestor seed --loop   # one event every 2 seconds
 ```
 
+Checking the API by hand:
+
+```bash
+curl -s 'localhost:3000/api/notices?limit=5'   # history, cursor pagination
+curl -N  localhost:3000/api/stream             # live SSE (":ping" every 15 s)
+curl -s  localhost:3000/api/health             # ingestor heartbeat + lag
+```
+
+`/api/health` answers `status: "unknown"` while only the seed producer has run — the seed
+writes rows but no heartbeat; `service_state` is touched by the real worker only.
+
 `GCN_CLIENT_ID` / `GCN_CLIENT_SECRET` must be a live pair from gcn.nasa.gov — a revoked one
 fails at startup with `invalid_client` from the broker, before any topic is subscribed.
 

@@ -55,7 +55,11 @@ Node зафиксирован в `.nvmrc` = **v22.17.0**. Типчек — `tsc 
   раздаётся через те же data-store-провайдеры, что и раньше.
 - **SSE, а не WebSocket.** `/api/stream` держит один singleton-клиент `pg` с
   `LISTEN gcn_notice` на процесс и мультиплексирует уведомления подписчикам. В `NOTIFY` уходит
-  только id (лимит payload — 8 КБ), строка добирается `SELECT`.
+  только id (лимит payload — 8 КБ), строка добирается `SELECT`. Поддержан `Last-Event-ID`:
+  после обрыва сервер доигрывает пропущенное.
+- **Серверный слой БД — `src/shared/api/db/`**: пул и LISTEN-клиент кэшируются в `globalThis`
+  (hot-reload иначе плодит соединения и слушателей), пагинация курсорная (`<epoch_ms>_<id>`),
+  `payload` наружу не отдаётся.
 - **Kafka даёт at-least-once** — дедупликация обязательна: `unique (topic, kafka_partition,
   kafka_offset)` + `ON CONFLICT DO NOTHING`.
 - **Форматы топиков разнородны** — у парсеров всегда должен быть fallback (`kind: "unknown"`),
