@@ -77,6 +77,12 @@ With `seed --loop` running, open http://localhost:3000 — cards should arrive a
 2 s, the feed should stay pinned to the bottom, and scrolling up should turn new arrivals into the
 "↓ N new" pill instead of yanking the view.
 
+The hero canvas is mounted in `_app`, so it renders on every page and does **not** need the DB —
+an empty feed still shows the metaball over the starfield. If it stays black, check the console for
+`hero: …` (context/compile/link failures throw from `HeroRenderer` and fall back to the poster).
+The canvas pauses its rAF loop when the tab is hidden — a background tab measuring 0 FPS is correct,
+not a hang.
+
 `/api/health` answers `status: "unknown"` while only the seed producer has run — the seed
 writes rows but no heartbeat; `service_state` is touched by the real worker only.
 

@@ -6,6 +6,7 @@ import { AppHooks } from "@widgets/app-hooks/app-hooks";
 import { FpsWidget } from "@widgets/fps";
 import { Gsap } from "@widgets/gsap";
 import { Header } from "@widgets/header";
+import { HeroMetaballs } from "@widgets/hero-metaballs";
 import { PerformanceDetect } from "@widgets/performance-detect";
 import { Preloader } from "@widgets/preloader";
 import { ResizeProvider } from "@widgets/resize";
@@ -26,6 +27,8 @@ export default function App({ Component, pageProps, router }: AppProps) {
       <SeoLayout pageSeoData={pageProps?.cms?.pageSeoData}>
         <ResizeProvider>
           <GlobalDataProvider data={{}}>
+            {/* Выше страницы в дереве: контекст WebGL переживает переход фаз и роутинг. */}
+            <HeroMetaballs />
             <Header />
             <Cursor />
             <Preloader />

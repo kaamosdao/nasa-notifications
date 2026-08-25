@@ -1,10 +1,12 @@
 .root {
+  position: relative;
+  // Канвас hero — fixed-слой с z-index 0; страница обязана лежать над ним явно.
+  z-index: 1;
   display: flex;
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
   padding: var(--spacing-32);
-  background-color: var(--main-background-color);
 
   @include mq(md) {
     padding: var(--spacing-16);
