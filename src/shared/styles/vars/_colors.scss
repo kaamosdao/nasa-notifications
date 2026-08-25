@@ -10,4 +10,17 @@
   /* Theme colors */
   --main-background-color: var(--c-graphite);
   --main-text-color: var(--c-white);
+
+  /* Notice kinds — акцент карточки в ленте */
+  --c-kind-gw: #7ea8ff;
+  --c-kind-grb: #ff8a5c;
+  --c-kind-frb: #9d7bff;
+  --c-kind-neutrino: #4fd6c2;
+  --c-kind-circular: #d4c68a;
+  --c-kind-unknown: #9a9a9a;
+
+  /* Feed surfaces — лента лежит поверх WebGL-hero, поэтому полупрозрачные */
+  --feed-card-background: rgb(255 255 255 / 6%);
+  --feed-card-border: rgb(255 255 255 / 10%);
+  --feed-text-muted: rgb(255 255 255 / 55%);
 }

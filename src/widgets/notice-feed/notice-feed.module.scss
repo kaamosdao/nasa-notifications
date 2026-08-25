@@ -1,0 +1,92 @@
+.root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--spacing-12);
+  height: 100%;
+  min-height: 0;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  column-gap: var(--spacing-12);
+  color: var(--main-text-color);
+}
+
+.heading {
+  @include h4();
+}
+
+.status {
+  padding: vw(2) vw(8);
+  color: var(--feed-text-muted);
+  border: 1px solid var(--feed-card-border);
+  border-radius: vw(999);
+  text-transform: uppercase;
+
+  @include captionXS();
+
+  &-live {
+    color: var(--c-kind-neutrino);
+    border-color: var(--c-kind-neutrino);
+  }
+
+  &-offline {
+    color: var(--c-kind-grb);
+    border-color: var(--c-kind-grb);
+  }
+}
+
+.scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  /* Позицию при подгрузке истории считаем сами — браузерный якорь мешает. */
+  overflow-anchor: none;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--spacing-12);
+
+  /*
+   * Лента прижата к низу, пока событий меньше экрана: новые приходят снизу.
+   * `margin-top: auto` вместо `justify-content: flex-end` на контейнере — при переполнении
+   * flex-end обрезает верх и до него не доскроллить.
+   */
+  margin-top: auto;
+  padding-right: var(--spacing-8);
+}
+
+.sentinel {
+  flex: 0 0 auto;
+  height: 1px;
+}
+
+.hint {
+  color: var(--feed-text-muted);
+  text-align: center;
+
+  @include captionXS();
+}
+
+.pill {
+  position: absolute;
+  bottom: var(--spacing-16);
+  left: 50%;
+  padding: vw(6) vw(16);
+  color: var(--main-background-color);
+  background-color: var(--main-text-color);
+  border: none;
+  border-radius: vw(999);
+  transform: translateX(-50%);
+  cursor: pointer;
+
+  @include btnS();
+}

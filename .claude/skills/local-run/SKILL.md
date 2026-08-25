@@ -73,6 +73,10 @@ curl -N  localhost:3000/api/stream             # live SSE (":ping" every 15 s)
 curl -s  localhost:3000/api/health             # ingestor heartbeat + lag
 ```
 
+With `seed --loop` running, open http://localhost:3000 — cards should arrive at the bottom every
+2 s, the feed should stay pinned to the bottom, and scrolling up should turn new arrivals into the
+"↓ N new" pill instead of yanking the view.
+
 `/api/health` answers `status: "unknown"` while only the seed producer has run — the seed
 writes rows but no heartbeat; `service_state` is touched by the real worker only.
 
