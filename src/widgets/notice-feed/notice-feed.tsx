@@ -23,21 +23,21 @@ const BOTTOM_THRESHOLD = 120;
 const ENTER_DURATION = 0.5;
 const ENTER_EASE = "power2.out";
 
-const pluralRules = new Intl.PluralRules("ru-RU");
+const pluralRules = new Intl.PluralRules("en");
 
 const PENDING_FORMS: Record<Intl.LDMLPluralRule, string> = {
-  one: "новое событие",
-  few: "новых события",
-  many: "новых событий",
-  two: "новых события",
-  zero: "новых событий",
-  other: "новых событий",
+  one: "new event",
+  few: "new events",
+  many: "new events",
+  two: "new events",
+  zero: "new events",
+  other: "new events",
 };
 
 const CONNECTION_LABELS = {
-  connecting: "подключение",
+  connecting: "connecting",
   live: "live",
-  offline: "нет связи",
+  offline: "offline",
 } as const;
 
 export type NoticeFeedProps = {
@@ -217,7 +217,7 @@ export const NoticeFeed = (props: NoticeFeedProps) => {
   return (
     <section className={clsx(s.root, className)}>
       <header className={s.head}>
-        <h2 className={s.heading}>Поток GCN</h2>
+        <h2 className={s.heading}>GCN stream</h2>
         <span className={clsx(s.status, s[`status-${connection}`])}>
           {CONNECTION_LABELS[connection]}
         </span>
@@ -234,15 +234,13 @@ export const NoticeFeed = (props: NoticeFeedProps) => {
 
           {hasMore && (
             <p className={s.hint}>
-              {isLoading
-                ? "Загружаем историю…"
-                : "Прокрутите вверх за историей"}
+              {isLoading ? "Loading history…" : "Scroll up for history"}
             </p>
           )}
 
           {!items.length && (
             <p className={s.hint}>
-              Ждём событий GCN — поток может молчать часами
+              Waiting for GCN events — the stream can stay silent for hours
             </p>
           )}
 

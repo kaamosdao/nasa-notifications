@@ -126,8 +126,8 @@ export const HeroIntro = ({ className }: HeroIntroProps) => {
         </h1>
 
         <p ref={subtitleRef} className={s.subtitle}>
-          Поток научных оповещений в реальном времени: гравитационные волны,
-          гамма-всплески, нейтрино и циркуляры.
+          Real-time stream of scientific alerts: gravitational waves, gamma-ray
+          bursts, neutrinos and circulars.
         </p>
 
         <div ref={actionRef} className={s.action}>
@@ -136,7 +136,7 @@ export const HeroIntro = ({ className }: HeroIntroProps) => {
             className={s.button}
             onClick={() => setPhase("background")}
           >
-            Открыть поток
+            Open the stream
           </button>
         </div>
       </div>

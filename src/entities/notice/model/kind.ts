@@ -2,12 +2,12 @@ import type { NoticeKind } from "./types";
 
 /** Полное название типа события — заголовок карточки. */
 export const NOTICE_KIND_LABELS: Record<NoticeKind, string> = {
-  gw: "Гравитационная волна",
-  grb: "Гамма-всплеск",
-  frb: "Быстрый радиовсплеск",
-  neutrino: "Нейтрино",
-  circular: "Циркуляр",
-  unknown: "Оповещение",
+  gw: "Gravitational wave",
+  grb: "Gamma-ray burst",
+  frb: "Fast radio burst",
+  neutrino: "Neutrino",
+  circular: "Circular",
+  unknown: "Alert",
 };
 
 /** Короткая метка для бейджа. */

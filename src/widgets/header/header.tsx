@@ -32,7 +32,7 @@ export const Header = (props: HeaderProps) => {
         onClick={() => setPhase("intro")}
         inert={!isBackground}
       >
-        ↑ К началу <span className={s.hint}>Esc</span>
+        ↑ Back to top <span className={s.hint}>Esc</span>
       </button>
     </header>
   );

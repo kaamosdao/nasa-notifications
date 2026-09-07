@@ -56,7 +56,7 @@ export const NoticeCard = (props: NoticeCardProps) => {
           className={s.toggle}
           onClick={() => setIsExpanded((value) => !value)}
         >
-          {isExpanded ? "Свернуть" : "Читать целиком"}
+          {isExpanded ? "Collapse" : "Read in full"}
         </button>
       )}
 

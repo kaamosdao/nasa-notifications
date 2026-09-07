@@ -2,12 +2,12 @@ export const siteURL = new URL(process.env.NEXT_PUBLIC_SITE_URL || "");
 export const siteOrigin = siteURL.origin;
 
 export const APP_INFO = {
-  APP_DEFAULT_TITLE: "NASA · GCN — поток астрофизических оповещений",
+  APP_DEFAULT_TITLE: "NASA · GCN — astrophysical alert stream",
   APP_TITLE_TEMPLATE: "%s",
   APP_DESCRIPTION:
-    "Оповещения GCN в реальном времени: гравитационные волны, гамма-всплески, нейтрино и циркуляры — лента событий без перезагрузки страницы.",
+    "GCN alerts in real time: gravitational waves, gamma-ray bursts, neutrinos and circulars — an event feed with no page reloads.",
   APP_KEYWORDS:
-    "GCN, NASA, гравитационные волны, гамма-всплески, нейтрино, LIGO, Fermi, Swift, IceCube, астрофизика, оповещения",
+    "GCN, NASA, gravitational waves, gamma-ray bursts, neutrinos, LIGO, Fermi, Swift, IceCube, astrophysics, alerts",
   // Тот же цвет, что `--c-space`: панель браузера не должна спорить с фоном сцены.
   APP_DEFAULT_THEME: "#05060a",
   APP_SITE_URL_ORIGIN: siteOrigin || "",

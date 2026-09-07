@@ -13,7 +13,7 @@ import s from "./hero-controls.module.scss";
 
 const STORAGE_KEY = "hero-controls";
 
-const GROUPS = ["Форма", "Вода", "Небо", "Анимация"] as const;
+const GROUPS = ["Shape", "Water", "Sky", "Motion"] as const;
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
@@ -111,7 +111,7 @@ export const HeroControlsPanel = () => {
         className={s.toggle}
         onClick={() => setIsOpen(true)}
       >
-        Шар
+        config
       </button>
     );
   }
@@ -119,19 +119,19 @@ export const HeroControlsPanel = () => {
   return (
     <div className={s.root}>
       <div className={s.head}>
-        <span className={s.title}>Шар</span>
+        <span className={s.title}>Ball</span>
         <button type="button" className={s.action} onClick={handleCopy}>
-          {isCopied ? "Скопировано" : "Копировать"}
+          {isCopied ? "Copied" : "Copy"}
         </button>
         <button type="button" className={s.action} onClick={reset}>
-          Сброс
+          Reset
         </button>
         <button
           type="button"
           className={s.action}
           onClick={() => setIsOpen(false)}
         >
-          Свернуть
+          Collapse
         </button>
       </div>
 
