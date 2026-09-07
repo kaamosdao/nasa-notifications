@@ -26,6 +26,9 @@ const UNIFORM_NAMES = [
   "uWaveScale",
   "uWaveSpeed",
   "uRefraction",
+  "uSplash",
+  "uSplashParams",
+  "uSplashAmp",
   "uStarGain",
   "uDust",
   "uNebula",
@@ -39,6 +42,30 @@ type UniformName = (typeof UNIFORM_NAMES)[number];
 const FOV = 0.8;
 /** Плоскость, на которую проецируется указатель, — чуть перед главным шаром. */
 const CURSOR_PLANE_Z = 0.4;
+
+/** Столько же слотов, сколько в шейдере: пятый клик вытесняет самый старый всплеск. */
+const MAX_SPLASHES = 4;
+
+/**
+ * Разброс характера всплеска. Каждый клик берёт значения отсюда случайно — иначе
+ * серия тапов выглядит одной и той же анимацией, запущенной несколько раз.
+ */
+const SPLASH_RANGES = {
+  /** Скорость фронта, мировых единиц в секунду. */
+  speed: [0.9, 1.9],
+  /** Частота колец: выше — тонкая рябь, ниже — один широкий вал. */
+  frequency: [7, 16],
+  /** Сила наклона нормали. */
+  strength: [0.5, 1.1],
+  /** Время жизни, с. */
+  life: [1.1, 2],
+} as const;
+
+/** Толчок курсорному шару вглубь сцены при клике, мировых единиц в секунду. */
+const SPLASH_IMPULSE = [1.1, 2] as const;
+
+const randomIn = ([min, max]: readonly [number, number]): number =>
+  min + Math.random() * (max - min);
 
 const DPR_CAP = 1.75;
 /** При каждом шаге деградации качества режем разрешение — шаги raymarching фиксированы. */
@@ -145,6 +172,16 @@ export class HeroRenderer {
   private cursorPos: [number, number, number] = [1.6, 0, CURSOR_PLANE_Z];
   private cursorVel: [number, number, number] = [0, 0, 0];
 
+  /**
+   * Всплески от клика, уже в раскладке uniform-массива: собирать его заново каждый
+   * кадр не из чего — от кадра к кадру меняется только возраст.
+   *
+   * Возраст -1 означает пустой слот; `fill` задаёт его сразу всем.
+   */
+  private readonly splashes = new Float32Array(MAX_SPLASHES * 4).fill(-1);
+  private readonly splashParams = new Float32Array(MAX_SPLASHES * 4);
+  private splashSlot = 0;
+
   /** Форма и темп сцены. В проде — дефолты, в dev их двигает панель. */
   private controls: HeroControls = HERO_CONTROLS_DEFAULTS;
 
@@ -217,7 +254,7 @@ export class HeroRenderer {
     window.addEventListener("pointermove", this.handlePointerMove, {
       passive: true,
     });
-    window.addEventListener("pointerdown", this.handlePointerMove, {
+    window.addEventListener("pointerdown", this.handlePointerDown, {
       passive: true,
     });
     window.addEventListener("pointerleave", this.handlePointerLeave);
@@ -268,7 +305,7 @@ export class HeroRenderer {
       this.handleVisibilityChange,
     );
     window.removeEventListener("pointermove", this.handlePointerMove);
-    window.removeEventListener("pointerdown", this.handlePointerMove);
+    window.removeEventListener("pointerdown", this.handlePointerDown);
     window.removeEventListener("pointerleave", this.handlePointerLeave);
 
     this.gl.bindVertexArray(null);
@@ -312,9 +349,54 @@ export class HeroRenderer {
     this.cursorActiveTarget = 1;
   };
 
+  /** Клик и тап — одно событие: точка обновляется до всплеска, иначе кольцо уйдёт из-под пальца. */
+  private handlePointerDown = (event: PointerEvent): void => {
+    this.handlePointerMove(event);
+    this.spawnSplash();
+  };
+
   private handlePointerLeave = (): void => {
     this.cursorActiveTarget = 0;
   };
+
+  /**
+   * Точка удара берётся на той же плоскости, что и курсорный шар: искать лучом
+   * саму поверхность пришлось бы вторым марчем на CPU, а кольцо и так расходится
+   * из-под указателя.
+   */
+  private spawnSplash(): void {
+    const offset = this.splashSlot * 4;
+    const [x, y, z] = this.getCursorTarget();
+
+    this.splashes.set([x, y, z, 0], offset);
+    this.splashParams.set(
+      [
+        randomIn(SPLASH_RANGES.speed),
+        randomIn(SPLASH_RANGES.frequency),
+        randomIn(SPLASH_RANGES.strength),
+        randomIn(SPLASH_RANGES.life),
+      ],
+      offset,
+    );
+
+    this.splashSlot = (this.splashSlot + 1) % MAX_SPLASHES;
+
+    // Толчок вглубь: без него клик читается только по отражениям, а не как касание.
+    this.cursorVel[2] -= randomIn(SPLASH_IMPULSE);
+  }
+
+  /** Возраст всплесков ведём на CPU: в шейдер он уходит уже готовым числом. */
+  private updateSplashes(delta: number): void {
+    for (let slot = 0; slot < MAX_SPLASHES; slot++) {
+      const age = slot * 4 + 3;
+
+      if (this.splashes[age] < 0) continue;
+
+      this.splashes[age] += delta;
+
+      if (this.splashes[age] > this.splashParams[age]) this.splashes[age] = -1;
+    }
+  }
 
   private handleResize = (entries: ResizeObserverEntry[]): void => {
     const rect = entries[0]?.contentRect;
@@ -426,6 +508,7 @@ export class HeroRenderer {
     this.updateParallax(delta);
     this.applyPhaseTargets(Math.min(1, PHASE_RATE * delta));
     this.updateCursor(delta);
+    this.updateSplashes(delta);
     this.resize();
     this.renderFrame();
 
@@ -465,6 +548,9 @@ export class HeroRenderer {
     gl.uniform1f(this.uniforms.uWaveScale, c.waveScale);
     gl.uniform1f(this.uniforms.uWaveSpeed, c.waveSpeed);
     gl.uniform1f(this.uniforms.uRefraction, c.refraction);
+    gl.uniform4fv(this.uniforms.uSplash, this.splashes);
+    gl.uniform4fv(this.uniforms.uSplashParams, this.splashParams);
+    gl.uniform1f(this.uniforms.uSplashAmp, c.splashAmp);
     gl.uniform1f(this.uniforms.uStarGain, c.starGain);
     gl.uniform1f(this.uniforms.uDust, c.dust);
     gl.uniform1f(this.uniforms.uNebula, c.nebula);

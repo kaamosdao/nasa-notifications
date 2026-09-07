@@ -30,6 +30,8 @@ export type HeroControls = {
   waveSpeed: number;
   /** Сколько неба видно сквозь толщу: 0 — чёрное зеркало, выше — вода. */
   refraction: number;
+  /** Сила кольцевой волны от клика: 0 — клик по воде ничего не делает. */
+  splashAmp: number;
   /** Общая яркость звёздного поля: сдвигает порог, ниже которого звезду не видно. */
   starGain: number;
   /** Количество межзвёздной пыли: 0 — полоса без прожилок. */
@@ -63,6 +65,7 @@ export const HERO_CONTROLS_DEFAULTS: HeroControls = {
   waveScale: 1,
   waveSpeed: 0.46,
   refraction: 0.55,
+  splashAmp: 0.6,
   starGain: 0.3,
   dust: 2.4,
   nebula: 0.2,
@@ -164,6 +167,14 @@ export const HERO_CONTROL_FIELDS: readonly HeroControlField[] = [
     min: 0,
     max: 1.5,
     step: 0.01,
+  },
+  {
+    key: "splashAmp",
+    label: "Click splash",
+    group: "Water",
+    min: 0,
+    max: 3,
+    step: 0.05,
   },
   {
     key: "waveSpeed",

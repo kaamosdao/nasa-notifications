@@ -38,6 +38,8 @@ uniform float uWaveAmp;
 uniform float uWaveScale;
 uniform float uWaveSpeed;
 uniform float uRefraction;
+/** Общая сила всплесков от клика: 0 — клик по воде ничего не делает. */
+uniform float uSplashAmp;
 
 /** Небо: общая яркость звёздного поля и количество межзвёздной пыли. */
 uniform float uStarGain;
@@ -54,6 +56,13 @@ out vec4 fragColor;
 #define SURF_EPS 0.0015
 /** Верхняя граница цикла: реальное число спутников задаёт uOrbitCount. */
 #define MAX_ORBITS 6
+/** Сколько всплесков живёт одновременно: дальше самый старый вытесняется. */
+#define MAX_SPLASHES 4
+
+/** Всплеск от клика: xyz — точка удара в мире, w — возраст в секундах (меньше нуля — слот пуст). */
+uniform vec4 uSplash[MAX_SPLASHES];
+/** Его же характер: x — скорость фронта, y — частота колец, z — сила, w — время жизни. */
+uniform vec4 uSplashParams[MAX_SPLASHES];
 
 /**
  * Нормаль плоскости Галактики. Наклон подобран так, чтобы полоса шла по кадру
@@ -219,6 +228,51 @@ vec3 calcNormal(vec3 p) {
 }
 
 /**
+ * Кольцевая волна от клика — цуг синусоид под гауссовым окном, привязанным к
+ * расходящемуся фронту. Окно и есть кольцо: без него всплеск заливал бы шар
+ * целиком и читался бы как смена ряби, а не как удар в точку.
+ *
+ * Возвращается градиент высоты, а не сама высота: наклонять надо нормаль, и
+ * производная у такого профиля берётся аналитически, без лишних выборок шума.
+ */
+vec3 splashGradient(vec3 p) {
+  if (uSplashAmp <= 0.0) {
+    return vec3(0.0);
+  }
+
+  vec3 total = vec3(0.0);
+
+  for (int i = 0; i < MAX_SPLASHES; i++) {
+    float age = uSplash[i].w;
+    float life = uSplashParams[i].w;
+
+    if (age < 0.0 || age > life) continue;
+
+    // Точка удара приходит в немасштабированных единицах — как uCursor.
+    vec3 delta = p - uSplash[i].xyz * uScale;
+    float r = max(length(delta), 1e-4);
+    float front = age * uSplashParams[i].x;
+    float x = (r - front) * uSplashParams[i].y;
+
+    // Энергия уходит и со временем, и на длину кольца: у расходящейся волны
+    // тот же гребень растягивается на всё больший обод.
+    float decay = uSplashParams[i].z
+      * pow(1.0 - age / life, 2.0)
+      / (1.0 + front * 1.4);
+
+    // d/dx [sin(x) * exp(-x^2/2)] = cos(x) - x * sin(x), дальше цепное правило по r.
+    float slope = uSplashParams[i].y
+      * (cos(x) - x * sin(x))
+      * exp(-x * x * 0.5)
+      * decay;
+
+    total += slope * delta / r;
+  }
+
+  return total * uSplashAmp;
+}
+
+/**
  * Рябь. Геометрию не трогаем: волна на SDF стоила бы четырёх лишних fbm в каждом
  * шаге марша, тогда как на нормали её видно ровно так же — вся вода в кадре и так
  * читается только по бликам и по тому, как гуляет отражение.
@@ -227,25 +281,26 @@ vec3 calcNormal(vec3 p) {
  * нормаль, а наклонять её надо в касательной плоскости.
  */
 vec3 waveNormal(vec3 p, vec3 n) {
-  if (uWaveAmp <= 0.0) {
-    return n;
+  vec3 grad = vec3(0.0);
+
+  if (uWaveAmp > 0.0) {
+    // Шум течёт вдоль своей четвёртой оси, а не сдвигается целиком: сдвиг читался
+    // бы как движение шара, а не как жизнь на его поверхности.
+    vec3 q = p * uWaveScale + vec3(0.0, uTime * uWaveSpeed, uTime * uWaveSpeed * 0.6);
+
+    float e = 0.35;
+    float h = fbm(q, 2);
+    grad = vec3(
+      fbm(q + vec3(e, 0.0, 0.0), 2) - h,
+      fbm(q + vec3(0.0, e, 0.0), 2) - h,
+      fbm(q + vec3(0.0, 0.0, e), 2) - h
+    ) / e * uWaveAmp;
   }
 
-  // Шум течёт вдоль своей четвёртой оси, а не сдвигается целиком: сдвиг читался
-  // бы как движение шара, а не как жизнь на его поверхности.
-  vec3 q = p * uWaveScale + vec3(0.0, uTime * uWaveSpeed, uTime * uWaveSpeed * 0.6);
-
-  float e = 0.35;
-  float h = fbm(q, 2);
-  vec3 grad = vec3(
-    fbm(q + vec3(e, 0.0, 0.0), 2) - h,
-    fbm(q + vec3(0.0, e, 0.0), 2) - h,
-    fbm(q + vec3(0.0, 0.0, e), 2) - h
-  ) / e;
-
+  grad += splashGradient(p);
   grad -= n * dot(grad, n);
 
-  return normalize(n + grad * uWaveAmp);
+  return normalize(n + grad);
 }
 
 /**
