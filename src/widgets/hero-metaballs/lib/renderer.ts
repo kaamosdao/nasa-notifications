@@ -26,6 +26,11 @@ const UNIFORM_NAMES = [
   "uWaveScale",
   "uWaveSpeed",
   "uRefraction",
+  "uStarGain",
+  "uDust",
+  "uNebula",
+  "uNebulaLife",
+  "uTwinkle",
 ] as const;
 
 type UniformName = (typeof UNIFORM_NAMES)[number];
@@ -460,6 +465,11 @@ export class HeroRenderer {
     gl.uniform1f(this.uniforms.uWaveScale, c.waveScale);
     gl.uniform1f(this.uniforms.uWaveSpeed, c.waveSpeed);
     gl.uniform1f(this.uniforms.uRefraction, c.refraction);
+    gl.uniform1f(this.uniforms.uStarGain, c.starGain);
+    gl.uniform1f(this.uniforms.uDust, c.dust);
+    gl.uniform1f(this.uniforms.uNebula, c.nebula);
+    gl.uniform1f(this.uniforms.uNebulaLife, c.nebulaLife);
+    gl.uniform1f(this.uniforms.uTwinkle, c.twinkle);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }

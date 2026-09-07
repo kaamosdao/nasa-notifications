@@ -13,7 +13,7 @@ import s from "./hero-controls.module.scss";
 
 const STORAGE_KEY = "hero-controls";
 
-const GROUPS = ["Форма", "Вода", "Анимация"] as const;
+const GROUPS = ["Форма", "Вода", "Небо", "Анимация"] as const;
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
