@@ -8,6 +8,7 @@ import { mod } from "@shared/utils/css-mods";
 import { prefersReducedMotion } from "@shared/utils/prefers-reduced-motion";
 
 import { HeroRenderer, isWebgl2Supported } from "./lib/renderer";
+import { useHeroControlsStore } from "./model/controls-store";
 import { useHeroPhase } from "./model/hero-store";
 
 import s from "./hero-metaballs.module.scss";
@@ -47,7 +48,16 @@ export const HeroMetaballs = ({ className }: HeroMetaballsProps) => {
       return;
     }
 
+    // Подписка мимо React: ручки тянут мышью, и ререндер на каждом кадре drag'а
+    // здесь ничего не даёт — кадр всё равно рисует rAF-цикл рендерера.
+    rendererRef.current.setControls(useHeroControlsStore.getState().controls);
+
+    const unsubscribe = useHeroControlsStore.subscribe((state) => {
+      rendererRef.current?.setControls(state.controls);
+    });
+
     return () => {
+      unsubscribe();
       rendererRef.current?.destroy();
       rendererRef.current = null;
       setIsSupported(false);

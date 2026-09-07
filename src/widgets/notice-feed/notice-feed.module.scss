@@ -46,6 +46,8 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 
+  @include hide-scroll-bar();
+
   /* Позицию при подгрузке истории считаем сами — браузерный якорь мешает. */
   overflow-anchor: none;
 }

@@ -1,3 +1,5 @@
+import type { HeroControls } from "../model/controls-store";
+import { HERO_CONTROLS_DEFAULTS } from "../model/controls-store";
 import type { HeroPhase } from "../model/hero-store";
 import { FRAGMENT_SHADER } from "./shaders/fragment";
 import { VERTEX_SHADER } from "./shaders/vertex";
@@ -12,6 +14,18 @@ const UNIFORM_NAMES = [
   "uEnvIntensity",
   "uParallax",
   "uOffset",
+  "uCore",
+  "uBlend",
+  "uOrbitCount",
+  "uOrbitDistance",
+  "uOrbitLift",
+  "uOrbitRadius",
+  "uSpeed",
+  "uCursorRadius",
+  "uWaveAmp",
+  "uWaveScale",
+  "uWaveSpeed",
+  "uRefraction",
 ] as const;
 
 type UniformName = (typeof UNIFORM_NAMES)[number];
@@ -48,8 +62,6 @@ const PHASE_TARGETS: Record<
 
 /** Скорость подтягивания uniform'ов к целям фазы (доля остатка в секунду). */
 const PHASE_RATE = 3;
-/** Критически задемпфированная пружина курсорного шара. */
-const SPRING_OMEGA = 11;
 const MAX_DELTA = 1 / 30;
 
 export type HeroRendererOptions = {
@@ -119,12 +131,17 @@ export class HeroRenderer {
   private cssWidth = 0;
   private cssHeight = 0;
 
-  /** NDC-указатель для параллакса неба. */
+  /** NDC-указатель: сырое значение из события. */
   private pointer: [number, number] = [0, 0];
+  /** Он же после сглаживания — именно он уходит в uniform параллакса. */
+  private parallax: [number, number] = [0, 0];
   private cursorActive = 0;
   private cursorActiveTarget = 0;
   private cursorPos: [number, number, number] = [1.6, 0, CURSOR_PLANE_Z];
   private cursorVel: [number, number, number] = [0, 0, 0];
+
+  /** Форма и темп сцены. В проде — дефолты, в dev их двигает панель. */
+  private controls: HeroControls = HERO_CONTROLS_DEFAULTS;
 
   constructor({ canvas, reducedMotion = false }: HeroRendererOptions) {
     const gl = canvas.getContext("webgl2", {
@@ -210,6 +227,16 @@ export class HeroRenderer {
       this.resize();
       this.renderFrame();
     }
+  }
+
+  /**
+   * Ручки подбора вида. В reduced-motion кадр один, поэтому его нужно перерисовать
+   * вручную — иначе изменения не видно.
+   */
+  setControls(controls: HeroControls): void {
+    this.controls = controls;
+
+    if (this.reducedMotion) this.renderFrame();
   }
 
   /** `performanceIndex` из `widgets/performance-detect`: чем выше, тем ниже разрешение. */
@@ -350,9 +377,26 @@ export class HeroRenderer {
     ];
   }
 
+  /**
+   * События указателя приходят рывками и с разной частотой, поэтому в uniform
+   * идёт не сырая позиция, а догоняющая её.
+   *
+   * Коэффициент экспоненциальный, а не `rate * delta`: линейный давал бы разную
+   * скорость сглаживания на 60 и 120 Гц.
+   */
+  private updateParallax(delta: number): void {
+    // Без указателя небо возвращается в центр — так же, как шар уходит на орбиту.
+    const target = this.cursorActiveTarget ? this.pointer : [0, 0];
+    const factor = 1 - Math.exp(-this.controls.parallaxRate * delta);
+
+    for (let axis = 0; axis < 2; axis++) {
+      this.parallax[axis] += (target[axis] - this.parallax[axis]) * factor;
+    }
+  }
+
   private updateCursor(delta: number): void {
     const target = this.getCursorTarget();
-    const omega = SPRING_OMEGA;
+    const omega = this.controls.spring;
 
     for (let axis = 0; axis < 3; axis++) {
       const offset = this.cursorPos[axis] - target[axis];
@@ -374,6 +418,7 @@ export class HeroRenderer {
       (this.cursorActiveTarget - this.cursorActive) *
       Math.min(1, PHASE_RATE * delta);
 
+    this.updateParallax(delta);
     this.applyPhaseTargets(Math.min(1, PHASE_RATE * delta));
     this.updateCursor(delta);
     this.resize();
@@ -398,8 +443,23 @@ export class HeroRenderer {
     gl.uniform1f(this.uniforms.uCamZ, this.camZ);
     gl.uniform1f(this.uniforms.uScale, this.scale);
     gl.uniform1f(this.uniforms.uEnvIntensity, this.envIntensity);
-    gl.uniform2f(this.uniforms.uParallax, this.pointer[0], this.pointer[1]);
+    gl.uniform2f(this.uniforms.uParallax, this.parallax[0], this.parallax[1]);
     gl.uniform2f(this.uniforms.uOffset, this.getWorldOffsetX(), 0);
+
+    const c = this.controls;
+
+    gl.uniform1f(this.uniforms.uCore, c.core);
+    gl.uniform1f(this.uniforms.uBlend, c.blend);
+    gl.uniform1f(this.uniforms.uOrbitCount, c.orbitCount);
+    gl.uniform1f(this.uniforms.uOrbitDistance, c.orbitDistance);
+    gl.uniform1f(this.uniforms.uOrbitLift, c.orbitLift);
+    gl.uniform1f(this.uniforms.uOrbitRadius, c.orbitRadius);
+    gl.uniform1f(this.uniforms.uSpeed, c.speed);
+    gl.uniform1f(this.uniforms.uCursorRadius, c.cursorRadius);
+    gl.uniform1f(this.uniforms.uWaveAmp, c.waveAmp);
+    gl.uniform1f(this.uniforms.uWaveScale, c.waveScale);
+    gl.uniform1f(this.uniforms.uWaveSpeed, c.waveSpeed);
+    gl.uniform1f(this.uniforms.uRefraction, c.refraction);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }

@@ -7,7 +7,7 @@ import { FpsWidget } from "@widgets/fps";
 import { Gsap } from "@widgets/gsap";
 import { Header } from "@widgets/header";
 import { HeroIntro } from "@widgets/hero-intro";
-import { HeroMetaballs } from "@widgets/hero-metaballs";
+import { HeroControlsPanel, HeroMetaballs } from "@widgets/hero-metaballs";
 import { PerformanceDetect } from "@widgets/performance-detect";
 import { Preloader } from "@widgets/preloader";
 import { ResizeProvider } from "@widgets/resize";
@@ -22,6 +22,7 @@ export default function App({ Component, pageProps, router }: AppProps) {
   return (
     <>
       <FpsWidget />
+      <HeroControlsPanel />
       <PerformanceDetect />
       <Gsap />
       <SeoLayout pageSeoData={pageProps?.cms?.pageSeoData}>
