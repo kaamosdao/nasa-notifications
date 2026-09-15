@@ -36,9 +36,16 @@ RUN --mount=type=secret,id=frontend_env \
   pnpm build
 #RUN pnpm build-storybook
 
-# Обрезаем до production-зависимостей
+# Обрезаем до production-зависимостей.
+# Не `pnpm prune --prod`: он не принимает --filter, работает по всему workspace
+# и пересоздаёт node_modules, а без TTY это подтверждение обрывает сборку
+# (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY). CI=true снимает вопрос.
+# rm -rf обязателен: поверх готового node_modules `install --prod` убирает только
+# ссылки верхнего уровня, а сами dev-пакеты остаются в node_modules/.pnpm и едут в образ.
 FROM deps AS pruner
-RUN pnpm prune --prod
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+  rm -rf node_modules && \
+  CI=true pnpm install --prod --frozen-lockfile --filter nasa-notifications
 
 # Легкий рантайм-образ
 # pnpm/corepack здесь не нужны — старт идёт напрямую через node (см. CMD).
