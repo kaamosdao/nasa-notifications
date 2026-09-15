@@ -1,7 +1,6 @@
 export * from "./use-anchor-scroll-position/use-anchor-scroll-position";
 export * from "./use-create-scroll";
 export * from "./use-history-scroll-position";
-export * from "./use-preloader-scroll-stop";
 export * from "./use-scroll-page-transition";
 export * from "./use-scroll-trigger";
 export * from "./use-scrollbar-size";

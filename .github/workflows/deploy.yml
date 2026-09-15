@@ -51,7 +51,10 @@ jobs:
           GCN_CLIENT_SECRET: ${{ secrets.GCN_CLIENT_SECRET }}
           GCN_TOPICS: ${{ vars.GCN_TOPICS }}
           GCN_BACKFILL_DAYS: ${{ vars.GCN_BACKFILL_DAYS || '7' }}
-          GCN_CONSUMER_GROUP: ${{ vars.GCN_CONSUMER_GROUP || 'nasa-notifications' }}
+          # Группа обязана отличаться от локальной (.env): при общей группе Kafka
+          # делит партиции между dev и прод, а закоммиченные локально offset'ы
+          # отключают backfill на проде — лента остаётся пустой.
+          GCN_CONSUMER_GROUP: ${{ vars.GCN_CONSUMER_GROUP || 'nasa-notifications-production' }}
           NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
           NEXT_PUBLIC_APP_ENV: production
           NEXT_PUBLIC_YANDEX_TRACKING_ID: ${{ vars.NEXT_PUBLIC_YANDEX_TRACKING_ID }}

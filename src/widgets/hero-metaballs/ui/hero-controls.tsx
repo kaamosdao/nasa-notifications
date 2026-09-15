@@ -15,8 +15,6 @@ const STORAGE_KEY = "hero-controls";
 
 const GROUPS = ["Shape", "Water", "Sky", "Motion"] as const;
 
-const IS_DEV = process.env.NODE_ENV === "development";
-
 /**
  * Значения из localStorage — данные прошлой версии панели: набор ручек мог
  * измениться, поэтому берём из него только знакомые числа, остальное — дефолт.
@@ -47,8 +45,8 @@ const readStored = (): HeroControls | null => {
 };
 
 /**
- * Панель подбора формы и анимации шара. Только для разработки: в проде не
- * рендерится, а найденные значения переносятся в `HERO_CONTROLS_DEFAULTS`.
+ * Панель подбора формы и анимации шара. Доступна и на проде; удачные значения
+ * переносятся в `HERO_CONTROLS_DEFAULTS`.
  */
 export const HeroControlsPanel = () => {
   const controls = useHeroControlsStore((state) => state.controls);
@@ -62,8 +60,6 @@ export const HeroControlsPanel = () => {
   // localStorage читается после монтирования: на сервере его нет, и значения в
   // разметке разошлись бы с клиентскими.
   useEffect(() => {
-    if (!IS_DEV) return;
-
     const stored = readStored();
     if (stored) setControls(stored);
   }, [setControls]);
@@ -71,8 +67,6 @@ export const HeroControlsPanel = () => {
   // Те же ручки из консоли: __hero.set({ blend: 0.8 }) — удобнее слайдеров, когда
   // значение уже известно, и единственный способ для скриптов и автотестов.
   useEffect(() => {
-    if (!IS_DEV) return;
-
     Object.assign(window, {
       __hero: {
         get: () => useHeroControlsStore.getState().controls,
@@ -87,16 +81,12 @@ export const HeroControlsPanel = () => {
   }, [setControls, reset]);
 
   useEffect(() => {
-    if (!IS_DEV) return;
-
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(controls));
     } catch {
       // Приватный режим — подбор просто не переживёт перезагрузку.
     }
   }, [controls]);
-
-  if (!IS_DEV) return null;
 
   const handleCopy = () => {
     void navigator.clipboard.writeText(JSON.stringify(controls, null, 2));

@@ -9,7 +9,6 @@ import {
   useAnchorScrollPosition,
   useCreateScroll,
   useHistoryScrollPosition,
-  usePreloaderScrollStop,
   useScrollbarSize,
   useScrollPageTransition,
   useScrollTrigger,
@@ -45,7 +44,6 @@ export const Scroll = forwardRef<HTMLElement, ScrollProps>(
     useHistoryScrollPosition(scroll as Lenis, root);
     useAnchorScrollPosition(scroll as Lenis, root, wrapper);
     useScrollbarSize(scroll as Lenis);
-    usePreloaderScrollStop(scroll as Lenis);
 
     const value = useSubscribeScroll(scroll as Lenis);
 

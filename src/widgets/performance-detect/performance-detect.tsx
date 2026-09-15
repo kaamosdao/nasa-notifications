@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { usePreloaderStore } from "@widgets/preloader/model/preloaderStore";
 import {
   EVENTS_TRANSITION_LAYOUT,
   transitionLayoutEmitter,
@@ -14,9 +13,6 @@ const FPS_THRESHOLD = 30;
 const MEASURE_INTERVAL_MS = 1000;
 
 export const PerformanceDetect = () => {
-  const isFinishEndAnimation = usePreloaderStore(
-    (state) => state.isFinishEndAnimation,
-  );
   const performanceIndex = usePerformanceStore(
     (state) => state.performanceIndex,
   );
@@ -66,8 +62,6 @@ export const PerformanceDetect = () => {
   }, [performanceIndex]);
 
   useEffect(() => {
-    if (!isFinishEndAnimation) return;
-
     let measureStartTime = performance.now();
     /** Timestamps of each tick in the last second (sliding window). */
     const times: number[] = [];
@@ -101,7 +95,7 @@ export const PerformanceDetect = () => {
     return () => {
       gsap.ticker.remove(refreshLoop);
     };
-  }, [isFinishEndAnimation, incrementPerformanceIndex]);
+  }, [incrementPerformanceIndex]);
 
   return null;
 };
