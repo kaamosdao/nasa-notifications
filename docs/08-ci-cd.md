@@ -1,233 +1,178 @@
-# CI/CD — сборка и деплой через GitLab
-
-> ⚠️ **Документ ещё описывает конфигурацию студийного boilerplate (Strapi / imgproxy /
-> Meilisearch).** Эти сервисы удалены на этапе 0; документ будет переписан на этапе 5
-> вместе с финальным деплоем. Источник правды по архитектуре — [план проекта](./15-plan.md).
+# CI/CD — сборка и деплой через GitHub Actions
 
 ## 📋 Обзор
 
-CI/CD вынесен в **переиспользуемый GitLab CI/CD Component** (`saltpepper/ci-components`), а проект подключает его тонким `include`. Вся логика (генерация env, сборка образов, деплой) живёт в компоненте и одинакова для всех проектов; в репозитории проекта остаются только:
-
-- `.gitlab-ci.yml` — подключение компонента + параметры (`inputs`);
-- `ci/env/*.env.tpl` — шаблоны переменных окружения проекта;
-- `docker/**/Dockerfile` и `docker-compose.*.yml` — сборка и запуск.
+Весь пайплайн — один workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml), один job:
 
 ```
-┌──────────────────────────┐        include: component@x.y.z
-│  .gitlab-ci.yml (проект)  │ ─────────────────────────────────┐
-│  inputs: services, ...    │                                  │
-└──────────────────────────┘                                  ▼
-┌──────────────────────────┐        ┌─────────────────────────────────────┐
-│  ci/env/*.env.tpl         │ ─────▶ │  saltpepper/ci-components/pipeline   │
-│  (переменные проекта)     │        │  prepare → build → deploy           │
-└──────────────────────────┘        └─────────────────────────────────────┘
+push в main
+   │
+   ├─ генерация *.env из ci/env/*.env.tpl (envsubst + секреты репозитория)
+   ├─ сборка и push образов frontend / ingestor в GHCR
+   └─ SSH на прод: scp compose + env → docker compose pull && up -d
 ```
 
-## 🔌 Подключение
+Почему один job, а не `build` + `deploy` по отдельности: env-файлы содержат пароль БД и секреты GCN. Разделение потребовало бы передавать их между джобами артефактом, то есть класть секреты в хранилище артефактов репозитория. В одном job они живут только в рабочей директории раннера.
 
-`.gitlab-ci.yml` в корне проекта:
+> Раньше здесь был GitLab CI с переиспользуемым компонентом `saltpepper/ci-components`. Он остался в студийном boilerplate; на GitHub компонент недоступен, поэтому `.gitlab-ci.yml` удалён, а его стадии `prepare → build → deploy` воспроизведены шагами workflow.
 
-```yaml
-include:
-  - component: git.snpdev.ru/saltpepper/ci-components/pipeline@1.0.9
-    inputs:
-      services: "backend frontend imgproxy postgres meilisearch"
-      required_vars: "DATABASE_HOST DATABASE_PASSWORD DATABASE_NAME DATABASE_USERNAME NEXT_PUBLIC_SITE_URL"
-      npm_registry: "https://npm-mirror.gitverse.ru"   # РФ-проект; по умолчанию npmjs
-      domain_frontend: boilerplate.snpdev.ru
-      domain_backend:  admin.boilerplate.snpdev.ru
-      domain_imgproxy: imgproxy.boilerplate.snpdev.ru
-      domain_meili:    search.boilerplate.snpdev.ru
-```
+## 🔑 Что завести в настройках репозитория
 
-### Параметры (`inputs`)
+**Settings → Secrets and variables → Actions.** Часть значений — секреты, часть — обычные переменные (они видны в логах, и это нормально).
 
-| Параметр | Назначение | По умолчанию |
-|---|---|---|
-| `services` | Какие сервисы обслуживать: для каждого генерируется `<svc>.env`, а `backend`/`frontend` ещё и собираются | `backend frontend imgproxy postgres meilisearch` |
-| `required_vars` | CI-переменные, без которых `prepare_env` падает (fail fast) | `""` |
-| `npm_registry` | npm-реестр для сборки (`--build-arg NPM_REGISTRY`). Для РФ-проектов — зеркало GitVerse | `https://registry.npmjs.org` |
-| `domain_*` | Домены для `.env` docker-compose (reverse proxy). **Опциональны** — пустой домен → строка `VIRTUAL_HOST_*` не пишется | `""` |
-| `frontend_context` / `backend_context` | Контексты сборки | `.` / `./@strapi` |
-| `dockerfile_env` | Подкаталог Dockerfile (`docker/<svc>/<env>/`) | `production` |
-| `deploy_path` | Базовый путь на проде | `/var/www` |
+### Secrets
 
-> Версию компонента (`@1.0.9`) **пиньте явно**. Обновление — осознанная смена тега, чтобы изменения не «прилетали» во все проекты сразу.
-
-## ⚙️ Стадии пайплайна
-
-```
-prepare ──▶ build ──▶ deploy
-```
-
-### 1. `prepare_env`
-
-Генерирует `*.env` из шаблонов `ci/env/<svc>.env.tpl` через `envsubst`, подставляя CI-переменные:
-
-```bash
-for svc in $SERVICES; do
-  envsubst < ci/env/${svc}.env.tpl > ${svc}.env
-done
-```
-
-- сначала проверяет `required_vars` (падает, если переменная пустая);
-- объявляет окружение `environment: { action: prepare }`, чтобы подтянулись **environment-scoped** значения секретов (testing/staging/production);
-- результат (`*.env`) передаётся дальше как артефакт.
-
-### 2. `build_images`
-
-Собирает и пушит образы `backend`/`frontend` (внешние образы — postgres/imgproxy/meili — пропускаются):
-
-```bash
-docker buildx build \
-  --build-arg NPM_REGISTRY="<npm_registry>" \
-  --secret id=${svc}_env,src=${svc}.env \
-  -t "$CI_REGISTRY_IMAGE/${svc}:$IMAGE_TAG" \
-  -t "$CI_REGISTRY_IMAGE/${svc}:$VERSION_TAG" \
-  -t "$CI_REGISTRY_IMAGE/${svc}:latest" \
-  -f docker/${svc}/${ENVIRONMENT}/Dockerfile <context>
-```
-
-### 3. Деплой
-
-| Джоб | Когда | Что делает |
-|---|---|---|
-| `deploy_local` | ветка `testing` | На хосте раннера: `docker compose pull && up -d` (testing-compose) |
-| `deploy_production` | `staging` / `release/*`, **вручную** | По SSH на сервер: копирует compose + `.env`, `docker compose pull && up -d` |
-
-## 🌿 Ветки → окружения → версии образов
-
-| Ветка | `ENV_NAME` | `VERSION_TAG` | Где деплоится |
-|---|---|---|---|
-| `testing` | `testing` | `testing` | `deploy_local` (авто) |
-| `staging` | `staging` | `staging` | `deploy_production` (вручную) |
-| `release/*` | `production` | `release-x-y-z` (slug ветки) | `deploy_production` (вручную) |
-
-Теги образа:
-- **`IMAGE_TAG`** = `<ref-slug>-<short-sha>` — неизменяемый тег конкретной сборки (для rollback);
-- **`VERSION_TAG`** = подвижный тег ветки (`testing` / `staging` / `release-x-y-z`);
-- **`latest`** — для обратной совместимости.
-
-## 📦 Реестр образов
-
-Путь образа выводится из `$CI_REGISTRY` и пути проекта:
-
-```yaml
-CI_REGISTRY: registry.git.snpdev.ru
-CI_PROJECT_PATH: saltpepper/$CI_PROJECT_NAME
-CI_REGISTRY_IMAGE: $CI_REGISTRY/$CI_PROJECT_PATH
-```
-
-Логин идёт в тот же `$CI_REGISTRY`, поэтому хосты `login` / `push` / `pull` совпадают.
-
-В docker-compose образ берётся из `${CI_REGISTRY_IMAGE}`:
-```yaml
-image: ${CI_REGISTRY_IMAGE}/backend:${VERSION_TAG}
-```
-(`CI_REGISTRY_IMAGE`, `IMAGE_TAG`, `VERSION_TAG` пишутся деплой-джобом в `.env`.)
-
-## 🔑 Переменные окружения проекта (`ci/env/*.env.tpl`)
-
-Каждый сервис — свой шаблон с плейсхолдерами `${VAR}`:
-
-```
-ci/env/backend.env.tpl
-ci/env/frontend.env.tpl
-ci/env/imgproxy.env.tpl
-ci/env/postgres.env.tpl
-ci/env/meilisearch.env.tpl
-```
-
-Правила:
-- **Секреты** (`JWT_SECRET`, `DATABASE_PASSWORD`, `APP_KEYS` …) — через `${VAR}`, значения берутся из CI/CD-переменных (желательно environment-scoped).
-- **Инфраструктурные константы** — хардкодом, т.к. они свойства compose-сетапа, а не секреты:
-  ```bash
-  DATABASE_CLIENT=postgres
-  DATABASE_HOST=postgres      # имя сервиса во внутренней сети
-  DATABASE_PORT=5432
-  DATABASE_SSL=false
-  ```
-
-См. также [03-environment-variables.md](./03-environment-variables.md).
-
-## 🇷🇺 npm-реестр (зеркало GitVerse)
-
-Реестр — **единый параметр `NPM_REGISTRY`**, дефолт — **npmjs**; зеркало включается явно (для РФ-проектов, у которых раннер не ходит в npmjs).
-
-**Уровни переключения:**
-
-| Уровень | Как включить зеркало |
+| Секрет | Что это |
 |---|---|
-| CI / проект | `npm_registry: "https://npm-mirror.gitverse.ru"` в `include` |
-| Ручная сборка | `docker build --build-arg NPM_REGISTRY=https://npm-mirror.gitverse.ru ...` |
-| Локальная разработка | committed `.npmrc` (корень + `@strapi/`) **или** глобально `npm config set registry <зеркало>` |
+| `SSH_HOST` | IP прод-сервера |
+| `SSH_USER` | Deploy-пользователь; **обязан совпадать с `project_user` в Ansible** |
+| `SSH_PRIVATE_KEY` | Приватный ключ, чей `.pub` лежит в `ansible/keys/` (у нас — `ci.pub`) |
+| `DATABASE_USERNAME` | Пользователь Postgres |
+| `DATABASE_PASSWORD` | Пароль Postgres |
+| `DATABASE_NAME` | Имя БД |
+| `GCN_CLIENT_ID` | Client ID gcn.nasa.gov |
+| `GCN_CLIENT_SECRET` | Client Secret gcn.nasa.gov |
 
-**В Dockerfile** реестр применяется в двух местах:
+`GITHUB_TOKEN` заводить не нужно — GitHub выдаёт его каждому запуску сам.
 
-```dockerfile
-ARG NPM_REGISTRY=https://registry.npmjs.org
-ENV NPM_CONFIG_REGISTRY=${NPM_REGISTRY}     # backend: для `npm install -g pnpm`
-ENV COREPACK_NPM_REGISTRY=${NPM_REGISTRY}   # frontend: для corepack (скачивание pnpm)
-RUN echo "registry=${NPM_REGISTRY}" > .npmrc  # для `pnpm install` зависимостей
+### Variables
+
+| Переменная | Назначение | Если не задать |
+|---|---|---|
+| `NEXT_PUBLIC_SITE_URL` | Публичный URL сайта (`https://gcn.testing-nasa-notifications.com`) | ❌ workflow падает |
+| `GCN_TOPICS` | csv топиков | пусто → дефолтный список ingestor'а |
+| `GCN_BACKFILL_DAYS` | Глубина первичной загрузки | `7` |
+| `GCN_CONSUMER_GROUP` | Consumer group Kafka | `nasa-notifications` |
+| `NOTICES_LIVE_LIMIT` | Карточек в DOM в live-режиме | `500` |
+| `NEXT_PUBLIC_YANDEX_TRACKING_ID` | Счётчик | пусто |
+
+Workflow проверяет обязательные значения **до** сборки и падает с понятным `::error::`, а не через десять минут на упавшем контейнере.
+
+### ⚠️ `DATABASE_URL` секретом не заводится
+
+Он собирается в workflow из трёх составляющих:
+
+```bash
+DATABASE_URL="postgres://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@postgres:5432/${DATABASE_NAME}"
 ```
 
-> `.npmrc` **генерируется из `ARG`** (а не копируется), поэтому `--build-arg`/`npm_registry` реально переключает реестр. Отдельная `ENV` нужна потому, что сам pnpm скачивается **до** появления `.npmrc` (corepack/npm читают только env, не файл).
+Хост внутри compose-сети — всегда `postgres` (имя сервиса). Отдельный секрет с полным URL — постоянный источник аварии: туда копируют локальную строку с `@localhost`, и контейнеры на сервере базу не находят, хотя она рядом и здорова.
 
-> Committed `.npmrc` в репозитории — **только для локальной разработки** (сборка его не использует). В не-РФ проектах его можно убрать.
-
-## 🩺 Healthcheck и порядок запуска
-
-Зависимые сервисы стартуют **только после готовности** Strapi, а не просто после старта контейнера:
+## 📦 Образы (GHCR)
 
 ```
-postgres (healthy) ─▶ backend (healthy) ─▶ frontend
-                                        └▶ imgproxy (после старта backend)
+ghcr.io/<owner>/<repo>/frontend:<sha7>   + :latest
+ghcr.io/<owner>/<repo>/ingestor:<sha7>   + :latest
 ```
 
-В docker-compose:
+GHCR принимает только нижний регистр, поэтому `github.repository` приводится к lowercase в шаге *Resolve image base and tag*.
+
+Тег `<sha7>` — короткий SHA коммита, неизменяемый: на него можно откатиться. `docker-compose.production.yml` подставляет его через `${VERSION_TAG}` из `.env`, который деплой кладёт рядом с compose:
+
+```
+PROJECT_SLUG=nasa-notifications
+CI_REGISTRY_IMAGE=ghcr.io/<owner>/<repo>
+VERSION_TAG=<sha7>
+```
+
+Имена `CI_REGISTRY_IMAGE` / `VERSION_TAG` достались от GitLab — их оставили, чтобы не трогать compose.
+
+### Откат на предыдущую версию
+
+```bash
+ssh <user>@<host>
+cd /var/www/<user>
+sed -i 's/^VERSION_TAG=.*/VERSION_TAG=<нужный sha7>/' .env
+docker compose -f docker-compose.production.yml up -d
+```
+
+### ⚠️ `docker login` на сервере живёт только во время деплоя
+
+Пул образов на сервере идёт под `GITHUB_TOKEN`, который **действителен только пока выполняется job**. Сразу после `up -d` workflow делает `docker logout`.
+
+Последствие: `docker compose pull` руками на сервере позже упадёт с `denied`. Уже скачанные образы при этом работают и переживают рестарт — `up -d` и `restart` не требуют реестра. Нужен ручной pull — залогиньтесь своим PAT с правом `read:packages`:
+
+```bash
+echo <PAT> | docker login ghcr.io -u <github-username> --password-stdin
+```
+
+## 🏗️ Сборка
+
+Оба образа собираются `docker/build-push-action` с кешом GitHub Actions (`type=gha`, отдельный `scope` на сервис — иначе они затирали бы кеш друг друга).
+
+**Фронту нужен `frontend.env` во время сборки**: `NEXT_PUBLIC_*` впекаются в бандл на `pnpm build`. Он передаётся секретом BuildKit:
+
 ```yaml
-backend:
-  healthcheck:
-    test: ["CMD", "wget", "-qO-", "http://127.0.0.1:1337/_health"]
-    start_period: 90s        # запас на миграции/прогрев
-  depends_on:
-    postgres: { condition: service_healthy }
-
-frontend:
-  depends_on:
-    backend: { condition: service_healthy }
+secret-files: |
+  frontend_env=frontend.env
 ```
 
-Подробнее про compose — [04-docker-compose.md](./04-docker-compose.md).
+а не `--build-arg` — аргумент сборки остался бы в истории слоёв опубликованного образа и читался бы любым, кто скачал образ.
 
-## 🚀 Запуск пайплайна
+Ingestor секретов на сборке не требует: он читает окружение в рантайме из `ingestor.env`.
 
-1. Закоммитьте в `testing` → автоматически: `prepare → build → deploy_local`.
-2. Для прода — ветка `release/*` (или `staging`), деплой запускается **вручную** в UI GitLab.
-3. Перед тегированием новой версии компонента прогоняйте `glab ci lint`.
+## 🚀 Деплой
 
-## 🛠️ Отладка и частые ошибки
+```
+scp docker-compose.production.yml .env frontend.env ingestor.env postgres.env
+    → /var/www/$SSH_USER/
+ssh → chmod 600 на env-файлы → docker login → compose pull → up -d --remove-orphans → logout
+```
+
+- `--remove-orphans` убирает контейнеры сервисов, удалённых из compose (наследие Strapi/imgproxy/meili);
+- `chmod 600` — в env-файлах пароль БД и секреты GCN;
+- ключ хоста добавляется через `ssh-keyscan` в `known_hosts`, а не отключением `StrictHostKeyChecking`: с `no` деплой уехал бы на чужой сервер при подмене DNS.
+
+`concurrency: cancel-in-progress` гарантирует, что два выката не столкнутся на одном сервере.
+
+## 🩺 Порядок запуска контейнеров
+
+```
+postgres (healthy) ─┬─▶ ingestor
+                    └─▶ frontend
+```
+
+`ingestor` и `frontend` ждут `service_healthy` у Postgres. У `ingestor` `stop_grace_period: 20s` — по SIGTERM он вызывает `consumer.disconnect()`, иначе ребалансировка consumer-группы висит до таймаута.
+
+## 🌐 Порты и nginx
+
+`docker-compose.production.yml` публикует порты **только на `127.0.0.1`**:
+
+| Сервис | Публикация |
+|---|---|
+| `frontend` | `127.0.0.1:3000` — наружу его отдаёт системный nginx |
+| `postgres` | `127.0.0.1:5432` — только локально (psql, дампы, `ssh -L`) |
+| `ingestor` | не публикуется |
+
+Публикация на `0.0.0.0` открыла бы Postgres в интернет: **docker публикует порты в обход ufw/iptables**, фаервол на сервере это не закрывает.
+
+Reverse-proxy и TLS настраивает Ansible — [10-ansible-playbook.md](./10-ansible-playbook.md).
+
+## 🇷🇺 npm-реестр
+
+В Dockerfile'ах есть `ARG NPM_REGISTRY` с дефолтом `https://registry.npmjs.org`. Раннеры GitHub в npmjs ходят свободно, поэтому workflow его не переопределяет. Зеркало GitVerse нужно было для раннеров из РФ — включается `--build-arg NPM_REGISTRY=https://npm-mirror.gitverse.ru` при ручной сборке.
+
+## 🛠️ Частые ошибки
 
 | Симптом | Причина | Решение |
 |---|---|---|
-| `denied: access forbidden` при push/pull | Нет прав на запись в реестр: подменён read-only токен (`REGISTRY_USER` ≠ `gitlab-ci-token`) или роль < Developer | Дать токену `write_registry` / убрать override; проверить роль |
-| `ERR_PNPM_IGNORED_BUILDS` | Build-скрипт зависимости (напр. `core-js`) не одобрен | Добавить пакет в `allowBuilds` в `pnpm-workspace.yaml` |
-| `pnpm install` уходит в `registry.npmjs.org` (ETIMEDOUT из РФ) | Зеркало не включено | Указать `npm_registry: "https://npm-mirror.gitverse.ru"` в `include` |
-| `script config should be a string…` | Строка `script` с `: ` без кавычек → YAML mapping | Обернуть в одинарные кавычки: `'echo "...: ..."'` |
-| `SyntaxError` на старте Strapi | `node node_modules/.bin/strapi` (это sh-обёртка) | Вызывать реальный JS: `node node_modules/@strapi/strapi/bin/strapi.js start` |
-| `Unknown dialect` | Пустой `DATABASE_CLIENT` | Захардкодить `DATABASE_CLIENT=postgres` в `ci/env/backend.env.tpl` |
-| `container backend is unhealthy` | Strapi не стартовал/не успел | `docker logs ..._backend`; проверить env/БД; при долгом старте поднять `start_period` |
+| `Required variable X is empty` | Не заведён секрет/переменная | Settings → Secrets and variables → Actions |
+| `Permission denied (publickey)` на шаге деплоя | В `SSH_PRIVATE_KEY` не тот ключ, или его `.pub` не раскатан на сервер | Проверить, что `ansible/keys/ci.pub` — пара к секрету, и прогнать плейбук |
+| `denied` при `docker compose pull` руками | Токен деплоя уже истёк | `docker login ghcr.io` своим PAT (`read:packages`) |
+| Контейнер не находит БД | `DATABASE_URL` с `localhost` | URL собирается workflow с хостом `postgres`; свой секрет с URL не заводить |
+| `ERR_PNPM_IGNORED_BUILDS` | Build-скрипт зависимости не одобрен | Добавить пакет в `allowBuilds` в `pnpm-workspace.yaml` |
+| Лента «залипает», события пачками | Буферизация SSE на nginx | Проверить локацию `/api/stream` в `ansible/templates/nginx.conf` |
 
-### Как дебажить внутри CI
+Логи на сервере:
 
-- Контейнеры остаются на хосте раннера (`up -d`) — зайти по SSH и `docker logs ..._backend`.
-- Временный джоб в `.post` с `when: always` и `DOCKER_HOST` сокетом — вытащит логи в вывод CI.
-- `CI_DEBUG_TRACE: "true"` — трассировка команд и переменных (⚠️ снять после отладки).
+```bash
+ssh <user>@<host>
+cd /var/www/<user>
+docker compose -f docker-compose.production.yml logs -f frontend ingestor
+```
 
 ## 🔗 Связанные документы
 
+- [Ansible — подготовка прод-сервера](./10-ansible-playbook.md)
 - [Переменные окружения](./03-environment-variables.md)
 - [Docker Compose](./04-docker-compose.md)
-- [Image Proxy](./05-image-proxy.md)
-- [Meilisearch](./06-meilisearch.md)
-- [Скрипты — менеджер CI-переменных GitLab](./09-gitlab-vars-script.md)

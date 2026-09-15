@@ -17,7 +17,19 @@
     nginx_site_path: "/etc/nginx/sites-available/{{ nginx_site_name }}"
     nginx_enabled_path: "/etc/nginx/sites-enabled/{{ nginx_site_name }}"
     nginx_config_src: "{{ playbook_dir }}/../templates/nginx.conf"
-    project_ssh_public_key_file: "{{ playbook_dir }}/../keys/{{ project_user }}.pub"
+
+    # Все ключи из keys/, а не один keys/<project_user>.pub: на сервер должны попасть
+    # и личный ключ разработчика, и ключ, которым ходит CI. authorized_key работает
+    # в режиме present, то есть добавляет, не затирая остальные.
+    project_ssh_key_dir: "{{ playbook_dir }}/../keys"
+
+    # www-редирект имеет смысл только для apex-домена: у поддомена
+    # (gcn.testing-nasa-notifications.com) www.gcn.… никто не регистрирует, а лишний
+    # server_name попал бы в запрос сертификата и уронил бы выпуск целиком —
+    # certbot требует, чтобы КАЖДЫЙ домен из -d прошёл проверку.
+    # Эвристика по числу меток; для доменов вида example.co.uk переопределите
+    # вручную: -e nginx_www_redirect=true
+    nginx_www_redirect: "{{ (domain | split('.') | length) == 2 }}"
 
   pre_tasks:
     - name: Validate required runtime vars
@@ -40,25 +52,28 @@
       become: false
       register: nginx_config_file
 
-    - name: Validate project SSH public key file exists on control machine
-      ansible.builtin.stat:
-        path: "{{ project_ssh_public_key_file }}"
+    - name: Read every public key file from keys/
+      ansible.builtin.slurp:
+        src: "{{ item }}"
       delegate_to: localhost
       become: false
-      register: ssh_public_key_file
+      loop: "{{ query('fileglob', project_ssh_key_dir ~ '/*.pub') | sort }}"
+      register: ssh_key_files
 
     - name: Fail if required local files are missing
       ansible.builtin.assert:
         that:
           - nginx_config_file.stat.exists
-          - ssh_public_key_file.stat.exists
+          - ssh_key_files.results | length > 0
         fail_msg: >-
-          Missing required file(s). Ensure these exist:
-          {{ nginx_config_src }} and {{ project_ssh_public_key_file }}
+          Missing required file(s). Ensure {{ nginx_config_src }} exists
+          and {{ project_ssh_key_dir }}/ contains at least one *.pub key.
 
-    - name: Load SSH public key from file
+    - name: Build the list of SSH public keys
       ansible.builtin.set_fact:
-        project_ssh_public_key: "{{ lookup('file', project_ssh_public_key_file) | trim }}"
+        project_ssh_public_keys: >-
+          {{ ssh_key_files.results
+             | map(attribute='content') | map('b64decode') | map('trim') | list }}
 
     # Проверяем ВЕСЬ файл, а не только его начало.
     # `is match` якорится на начало строки, поэтому файл вида
@@ -68,15 +83,18 @@
     # всплывал только позже — падением ansible.posix.authorized_key, который
     # разбирает содержимое построчно ("invalid key specified: ...").
     # Контракт: в файле ровно один ключ, одной строкой.
-    - name: Validate loaded SSH key format
+    - name: Validate every loaded SSH key format
       ansible.builtin.assert:
         that:
-          - project_ssh_public_key.splitlines() | length == 1
-          - project_ssh_public_key is match("^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256)\\s+\\S+")
+          - item.splitlines() | length == 1
+          - item is match("^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256)\\s+\\S+")
         fail_msg: >-
-          Invalid SSH public key in {{ project_ssh_public_key_file }}:
+          Invalid SSH public key in {{ project_ssh_key_dir }}/:
           expected exactly ONE line "<type> <base64> [comment]",
-          got {{ project_ssh_public_key.splitlines() | length }} line(s).
+          got {{ item.splitlines() | length }} line(s).
+      loop: "{{ project_ssh_public_keys }}"
+      loop_control:
+        label: "{{ item.split() | last }}"
 
   tasks:
     - name: Update apt cache
@@ -178,14 +196,13 @@
         append: true
         state: present
 
-    - name: Create nginx cache directories
+    # Только frontend: в templates/nginx.conf объявлена одна зона — frontend_cache.
+    # Зоны api_cache (Strapi) в этом проекте нет, бэкенда за nginx тоже.
+    - name: Create nginx cache directory
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: /var/cache/nginx/frontend
         state: directory
         mode: "0755"
-      loop:
-        - /var/cache/nginx/api
-        - /var/cache/nginx/frontend
 
     - name: Render nginx site config from template
       ansible.builtin.template:
@@ -229,11 +246,14 @@
         group: "{{ project_group }}"
         mode: "0700"
 
-    - name: Install authorized key from local file
+    - name: Install authorized keys from keys/
       ansible.posix.authorized_key:
         user: "{{ project_user }}"
         state: present
-        key: "{{ project_ssh_public_key }}"
+        key: "{{ item }}"
+      loop: "{{ project_ssh_public_keys }}"
+      loop_control:
+        label: "{{ item.split() | last }}"
 
     - name: Ensure authorized_keys permissions
       ansible.builtin.file:

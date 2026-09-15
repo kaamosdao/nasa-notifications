@@ -107,29 +107,34 @@ ask_become() {
 ask_project_vars() {
   echo
   echo "Project settings"
-  prompt_required "domain (apex)" "familydom-production.snpdev.ru"
+  prompt_required "domain" "gcn.testing-nasa-notifications.com"
   DOMAIN="${PROMPT_VALUE}"
-  prompt_required "project_user" "familydom"
+  # project_user обязан совпадать с секретом SSH_USER в GitHub Actions: CI ходит на сервер
+  # именно этим пользователем и выкладывает релиз в /var/www/<SSH_USER>.
+  prompt_required "project_user (= SSH_USER в GitHub Actions)" "nasa-notifications"
   PROJECT_USER="${PROMPT_VALUE}"
   prompt_required "project_group" "${PROJECT_USER}"
   PROJECT_GROUP="${PROMPT_VALUE}"
-  prompt_required "project_slug (PROJECT_SLUG)" "${PROJECT_USER}"
+  prompt_required "project_slug (PROJECT_SLUG)" "nasa-notifications"
   PROJECT_SLUG="${PROMPT_VALUE}"
-  prompt_required "project_dir on server" "/var/www/${PROJECT_USER}"
-  PROJECT_DIR="${PROMPT_VALUE}"
+
+  # project_dir здесь НЕ спрашиваем: плейбук выводит его как /var/www/{{ project_user }},
+  # ровно как workflow выводит REMOTE_DIR как /var/www/<SSH_USER>. Отдельный вопрос делал бы
+  # каталог вторым независимым источником правды — и позволял бы ему молча разойтись
+  # с каталогом деплоя. Нестандартный путь остаётся доступен при ручном запуске:
+  # -e "project_dir=/своё/место".
   EXTRA_VARS+=(
     -e "domain=${DOMAIN}"
     -e "project_user=${PROJECT_USER}"
     -e "project_group=${PROJECT_GROUP}"
     -e "project_slug=${PROJECT_SLUG}"
-    -e "project_dir=${PROJECT_DIR}"
   )
 }
 
 ask_production_host() {
   echo
   echo "Production host"
-  prompt_required "ansible_host (IP)" "109.73.197.61"
+  prompt_required "ansible_host (IP)"
   PROD_HOST="${PROMPT_VALUE}"
   prompt_required "ansible_user" "root"
   PROD_USER="${PROMPT_VALUE}"

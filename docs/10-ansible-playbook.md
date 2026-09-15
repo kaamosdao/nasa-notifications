@@ -1,48 +1,57 @@
 # Ansible — подготовка прод-сервера
 
-> ⚠️ **Документ ещё описывает конфигурацию студийного boilerplate (Strapi / imgproxy /
-> Meilisearch).** Эти сервисы удалены на этапе 0; документ будет переписан на этапе 5
-> вместе с финальным деплоем. Источник правды по архитектуре — [план проекта](./15-plan.md).
-
 ## 📋 Обзор
 
-В `ansible/` два плейбука и интерактивный раннер:
+В `ansible/` один плейбук и интерактивный раннер:
 
 | Что | Файл | Назначение |
 |---|---|---|
 | **Инициализация сервера** | `playbooks/prod-routine.yml` | однократная подготовка свежего Ubuntu-сервера под деплой |
-| **Перенос данных** | `playbooks/migrate-data-to-prod.yml` | Postgres + uploads на прод (из локального Docker или с другого сервера) |
-| **Раннер** | `run.sh` | меню, вопросы, временный inventory, запуск нужного плейбука |
+| **Раннер** | `run.sh` | вопросы, временный inventory, запуск плейбука |
 
 `prod-routine.yml` ставит и настраивает всё, чего ожидает CI-джоб `deploy_production`:
 
 - **Docker CE** + плагины (`buildx`, **`compose` v2**) — для запуска контейнеров проекта;
-- **системный nginx** как reverse-proxy к контейнерам (порты `3000/1337/8080/7700` на `localhost`) с кешированием;
+- **системный nginx** как reverse-proxy к контейнеру frontend (`127.0.0.1:3000`) с кешированием статики;
 - **certbot** (+ плагин nginx) — для TLS-сертификатов Let's Encrypt;
 - **deploy-пользователя** (`project_user`) в группе `docker`, с SSH-ключом и каталогом `/var/www/<project_user>`.
 
 После прогона сервер готов принимать деплой: CI по SSH заходит как `project_user` в `/var/www/<project_user>` и выполняет `docker compose -f docker-compose.production.yml up -d` (см. [08-ci-cd.md](./08-ci-cd.md)).
 
-> ⚠️ Прод использует **системный nginx**, а не `nginx-proxy` из testing-compose. На проде `docker-compose.production.yml` пробрасывает порты на `localhost`, а маршрутизацию/TLS делает nginx, поднятый этим плейбуком.
+> ⚠️ Прод использует **системный nginx**, а не `nginx-proxy` из testing-compose. На проде `docker-compose.production.yml` публикует порты **только на `127.0.0.1`**, а маршрутизацию и TLS делает nginx, поднятый этим плейбуком.
+
+### Стек этого проекта
+
+Из боилерплейта остались только три сервиса — Strapi, imgproxy и Meilisearch удалены на этапе 0, и плейбук с ними ничего не делает:
+
+| Контейнер | Порт на хосте | За nginx |
+|---|---|---|
+| `frontend` (Next.js) | `127.0.0.1:3000` | ✅ весь трафик |
+| `ingestor` (GCN → Postgres) | — | нет, наружу не смотрит |
+| `postgres` | `127.0.0.1:5432` | нет, только локально |
+
+Плейбука миграции данных здесь **нет и не требуется**: базу наполняет `ingestor` из потока GCN (при старте — backfill за `GCN_BACKFILL_DAYS`), пользовательских uploads в проекте не существует.
 
 ## 📁 Структура
 
 ```
 ansible/
-├── ansible.cfg                   # inventory=inventory, host_key_checking=False
-├── run.sh                        # интерактивное меню: setup / migrate
+├── ansible.cfg                  # inventory=inventory, host_key_checking=False
+├── run.sh                       # вопросы + запуск prod-routine.yml
 ├── inventory/
-│   └── hosts.ini                 # пример хостов (для ручного запуска без меню)
+│   └── hosts.ini                # пример хоста (для ручного запуска без меню)
 ├── playbooks/
-│   ├── prod-routine.yml          # инициализация сервера
-│   ├── migrate-data-to-prod.yml  # перенос Postgres + uploads (2 play'я)
-│   └── tasks/
-│       └── migrate-from-remote-source.yml
+│   └── prod-routine.yml         # инициализация сервера
 ├── templates/
-│   └── nginx.conf                # Jinja-шаблон reverse-proxy (server_name из domain)
+│   └── nginx.conf               # Jinja-шаблон reverse-proxy (server_name из domain)
 └── keys/
-    └── <project_user>.pub        # SSH public key деплой-пользователя
+    ├── nasa-notifications.pub   # личный ключ разработчика
+    └── ci.pub                   # ключ, которым ходит GitHub Actions
 ```
+
+Плейбук раскатывает **все** `keys/*.pub`, а не один файл: на сервер должны попасть и твой ключ (зайти руками), и ключ CI. `authorized_key` работает в режиме `present` — добавляет, не затирая уже лежащие.
+
+Приватная пара к `ci.pub` кладётся в секрет `SSH_PRIVATE_KEY` репозитория. Личный приватный ключ в CI не отдаём: у него шире доступ, и отозвать его — значит менять ключ везде, где он используется.
 
 ### `ansible.cfg`
 
@@ -53,11 +62,25 @@ host_key_checking = False      # не спрашивает подтвержде�
 interpreter_python = auto_silent
 ```
 
-## ⚠️ Дефолты в шаблоне — от предыдущих проектов
+## 💻 Где что стоит
 
-`run.sh` и `inventory/hosts.ini` содержат **реальные значения прошлых проектов** в качестве дефолтов: домен `familydom-production.snpdev.ru`, пользователь `familydom`, IP `109.73.197.61`. Каталог `keys/` тоже может содержать чужие ключи.
+Ansible — «push-based»: **на сервере он не нужен**. Ставится на твой ноутбук, оттуда подключается к серверу по SSH и выполняет задачи. На сервере требуется только sshd и Python (есть в Ubuntu из коробки) — ни агента, ни самого Ansible там не появляется.
 
-При старте нового проекта — **заменить**, иначе `run.sh` предложит их как готовые варианты и легко нажать Enter не глядя.
+| Где | Что нужно | Зачем |
+|---|---|---|
+| **Ноутбук** (control-машина) | `ansible`, коллекция `ansible.posix`, SSH-доступ к серверу | отсюда запускается `./run.sh` |
+| **Сервер** | чистая Ubuntu + SSH + sudo | всё остальное ставит плейбук |
+| **GitHub Actions** | секреты репозитория | деплоит уже на подготовленный сервер |
+
+Установка на macOS:
+
+```bash
+brew install ansible
+ansible-galaxy collection install ansible.posix
+ansible --version
+```
+
+Разово — сервер готовится один раз. Дальше живёшь на GitHub Actions, а к плейбуку возвращаешься, только если поменял `nginx.conf` или добавил ключ в `keys/`.
 
 ## ✅ Требования (control-машина)
 
@@ -68,7 +91,7 @@ interpreter_python = auto_silent
   ```
 - SSH-доступ к серверу (`root`/`ubuntu` или другой user) с sudo;
 - локально должны существовать:
-  - `ansible/keys/<project_user>.pub` — публичный ключ деплой-пользователя, **непустой и валидного формата**;
+  - хотя бы один `ansible/keys/*.pub` — **непустой и валидного формата**;
   - `ansible/templates/nginx.conf`.
 
 `pre_tasks` проверяет наличие обоих файлов и формат ключа (`ssh-rsa` / `ssh-ed25519` / `ecdsa-sha2-nistp256`) и падает, если что-то не так.
@@ -82,11 +105,9 @@ interpreter_python = auto_silent
 > ```
 > Проверить перед запуском:
 > ```bash
-> wc -l ansible/keys/<project_user>.pub     # должно быть 1
-> ssh-keygen -l -f ansible/keys/<project_user>.pub
+> for f in ansible/keys/*.pub; do wc -l < "$f"; ssh-keygen -l -f "$f"; done
 > ```
-
-> Для миграции из локального Docker дополнительно нужен **работающий локальный стек** — см. ниже.
+> Плейбук проверяет это сам, отдельным `assert` по каждому файлу, но до подключения к серверу — падение будет быстрым и с именем ключа в выводе.
 
 ## ▶️ Запуск
 
@@ -99,37 +120,37 @@ cd ansible
 
 ```
   1) Setup production server
-  2) Migrate data to production
-       1) From remote server
-       2) From local Docker (auto db.dump + uploads)
+  0) Exit
 ```
 
 Скрипт спрашивает параметры, собирает **временный inventory** (`mktemp`) и передаёт переменные через `-e`. Временные файлы удаляются по `trap` на выходе, в том числе при ошибке.
 
+Ввод дополнительно чистится от не-ASCII (`sanitize_value`): невидимый байт из копипасты не виден на экране, но превращает `ssh` под `nasa-notifications` в `Permission denied (publickey,password)` — и причина выглядит как проблема доступа, хотя дело во вводе.
+
 ### Sudo-пароль
 
-В конце каждого сценария задаётся вопрос **`Ask sudo password on remote?`** — при `y` добавляется `--ask-become-pass`.
+В конце задаётся вопрос **`Ask sudo password on remote?`** — при `y` добавляется `--ask-become-pass`.
 
-Оба плейбука работают с `become: true`, то есть **все задачи идут через sudo**. Отсюда правило:
+Плейбук работает с `become: true`, то есть **все задачи идут через sudo**. Отсюда правило:
 
 | Подключаетесь как | Ответ |
 |---|---|
 | `root` | `n` — sudo не нужен |
 | любой другой пользователь | **`y`**, если на сервере не настроен `NOPASSWD` sudo |
 
-`run.sh` подставляет дефолт сам, глядя на `ansible_user` прода и source-хоста: под non-root предлагает `Y` и предупреждает об этом.
+`run.sh` подставляет дефолт сам, глядя на `ansible_user`: под non-root предлагает `Y` и предупреждает об этом.
 
 Ответ `n` при подключении не под root даёт падение на первой же задаче:
 
 ```
-fatal: [old-1]: FAILED! => {"msg": "Missing sudo password"}
+fatal: [prod-1]: FAILED! => {"msg": "Missing sudo password"}
 ```
 
-Альтернатива паролю — настроить на сервере `NOPASSWD` для деплой-пользователя:
+Альтернатива паролю — настроить на сервере `NOPASSWD`:
 
 ```bash
-echo "creators ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/creators
-sudo chmod 0440 /etc/sudoers.d/creators
+echo "nasa-notifications ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/nasa-notifications
+sudo chmod 0440 /etc/sudoers.d/nasa-notifications
 ```
 
 Для ручного запуска без меню — `ansible-playbook playbooks/prod-routine.yml -i inventory/hosts.ini -e "..."`.
@@ -138,13 +159,37 @@ sudo chmod 0440 /etc/sudoers.d/creators
 
 **Production host:** `ansible_host` (IP), `ansible_user`.
 
-**Project settings:** `domain` (apex), `project_user`, `project_group`, `project_slug`, `project_dir`.
+**Project settings:** `domain`, `project_user`, `project_group`, `project_slug`.
 
-Из `domain` автоматически собираются поддомены:
-- `{{ domain }}` / `www.{{ domain }}` — frontend (+ www→apex redirect)
-- `admin.{{ domain }}` — Strapi
-- `search.{{ domain }}` — Meilisearch
-- `imgproxy.{{ domain }}` — imgproxy
+`project_dir` намеренно **не спрашивается** — он выводится как `/var/www/<project_user>`. См. ниже.
+
+### `domain` — что именно туда вводить
+
+Домен проекта: `gcn.testing-nasa-notifications.com`. Он попадает в `server_name` nginx — по нему nginx понимает, какому сайту адресован запрос, и на него же выпускается сертификат.
+
+**До запуска плейбука домен должен указывать на сервер.** У регистратора/в DNS-панели заводится одна A-запись:
+
+```
+gcn   A   <IP сервера>
+```
+
+(в зоне `testing-nasa-notifications.com`; имя `gcn`, а не полное `gcn.testing-...` — панели дописывают зону сами)
+
+Проверить, что разошлось:
+
+```bash
+dig +short gcn.testing-nasa-notifications.com    # должен вернуть IP сервера
+```
+
+Сам плейбук DNS не проверяет и без него отработает — nginx просто будет настроен на имя, которое пока никуда не ведёт. А вот **certbot без DNS не выпустит сертификат**: он проверяет владение доменом, обращаясь к нему извне по HTTP.
+
+### ⚠️ `www` для поддомена не нужен
+
+Шаблон nginx умеет редирект `www.<domain>` → `<domain>`, но рендерит его **только для apex-домена** (переменная `nginx_www_redirect`, эвристика — две метки в имени). Для `gcn.testing-nasa-notifications.com` блок не появится, и это правильно: `www.gcn.testing-...` никто не регистрирует, а лишнее имя в запросе сертификата уронило бы выпуск целиком — certbot требует, чтобы проверку прошёл **каждый** домен из `-d`.
+
+Переопределить: `-e nginx_www_redirect=true` (нужно для доменов вида `example.co.uk`, где эвристика по числу меток ошибается).
+
+Поддоменов `admin.` / `search.` / `imgproxy.` в этом проекте нет.
 
 ## ⚙️ Переменные
 
@@ -152,15 +197,9 @@ sudo chmod 0440 /etc/sudoers.d/creators
 |---|---|---|
 | `project_user` | ✅ | Deploy-пользователь = `SSH_USER` из CI; его дом `/var/www/<project_user>` |
 | `project_group` | ✅ | Группа-владелец каталогов проекта |
-| `project_slug` | ✅ | = `PROJECT_SLUG`; префикс контейнеров и томов |
-| `domain` | ✅ | Apex-домен; `admin.` / `search.` / `imgproxy.` / `www.` собираются автоматически |
-| `project_dir` | — | `/var/www/{{ project_user }}`; дефолт есть в плейбуке, но `run.sh` спрашивает его всегда |
-| `migrate_source` | ✅ для migrate | `remote` или `local` |
-| `migrate_backup` | — | бэкап текущих прод-данных перед импортом |
-| `migrate_stop_services` | — | стоп `backend`/`imgproxy` на время импорта |
-| `migrate_local_db_path` | ✅ если local | путь к дампу; **заполняет `run.sh` сам** |
-| `migrate_local_uploads_path` | ✅ если local | путь к выгруженным uploads; **заполняет `run.sh` сам** |
-| `source_project_slug` | — | slug на source-сервере (дефолт = `project_slug`) |
+| `project_slug` | ✅ | = `PROJECT_SLUG` (`nasa-notifications`); префикс контейнеров и томов |
+| `domain` | ✅ | Apex-домен; `www.` собирается автоматически |
+| `project_dir` | — | Выводится как `/var/www/{{ project_user }}`. `run.sh` его не спрашивает; для нестандартного пути — `-e project_dir=...` при ручном запуске |
 | `docker_ubuntu_codename` | — | кодовое имя релиза для apt-репозитория Docker; по умолчанию берётся с хоста (`ansible_distribution_release`) |
 | `docker_apt_arch` | — | `amd64`, либо `arm64` на `aarch64`-хостах |
 | `nginx_site_name` | — | `{{ project_user }}` |
@@ -169,13 +208,13 @@ sudo chmod 0440 /etc/sudoers.d/creators
 
 ## 🔧 Что делает `prod-routine.yml` (по шагам)
 
-1. **Проверки** (`pre_tasks`): заданы `project_user` / `project_group` / `domain`; локально есть `nginx.conf` и `keys/<user>.pub`; ключ валидного формата.
+1. **Проверки** (`pre_tasks`): заданы `project_user` / `project_group` / `domain`; локально есть `nginx.conf` и `keys/<user>.pub`; ключ валидного формата и ровно в одну строку.
 2. **Базовые пакеты**: `curl`, `software-properties-common`, `ca-certificates`, `apt-transport-https`, `gnupg`, `lsb-release`, `wget`.
 3. **nginx**: установка + `enable`/`start`.
 4. **certbot**: `certbot` + `python3-certbot-nginx`.
 5. **Docker**: GPG-ключ в `/etc/apt/keyrings/docker.gpg` + apt-репозиторий → `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-buildx-plugin`, `docker-compose-plugin`; группа `docker`; проверка `docker compose version`.
 6. **Deploy-пользователь**: `project_user` (shell `/bin/bash`, свой дом, состоит в `docker`).
-7. **Кеш-каталоги nginx**: `/var/cache/nginx/api`, `/var/cache/nginx/frontend`.
+7. **Кеш-каталог nginx**: `/var/cache/nginx/frontend` (зона `frontend_cache` — единственная в шаблоне).
 8. **nginx reverse-proxy**: рендер `templates/nginx.conf` → `sites-available/<user>`, симлинк в `sites-enabled`, удаление `default`, `nginx -t`, рестарт.
 9. **Каталог проекта**: `/var/www/<project_user>` во владении `project_user:project_group`.
 10. **SSH-доступ**: `~/.ssh` (0700), `authorized_keys` из `keys/<user>.pub` (0600).
@@ -204,7 +243,7 @@ docker compose version
 
 ### ⚠️ Версия Ubuntu на сервере
 
-Кодовое имя релиза для apt-репозитория Docker берётся **с самого хоста** (`ansible_distribution_release`), а не прибито константой. Раньше здесь был жёстко зашит `jammy`, из-за чего на сервере с другой Ubuntu (например 25.10 «resolute») ставились пакеты для 22.04 и конфликтовали с системными.
+Кодовое имя релиза для apt-репозитория Docker берётся **с самого хоста** (`ansible_distribution_release`), а не прибито константой. Жёсткий `jammy` на сервере с другой Ubuntu (например 25.10 «resolute») ставит пакеты для 22.04 и конфликтует с системными.
 
 Если Docker ещё не опубликовал пакеты под свежий релиз — переопределите вручную ближайшим LTS:
 
@@ -217,14 +256,19 @@ ansible-playbook playbooks/prod-routine.yml -i inventory/hosts.ini \
 
 ## 🌐 `templates/nginx.conf` — reverse-proxy
 
+Один upstream:
+
 | Upstream | Порт | Назначение |
 |---|---|---|
 | `frontend` | 3000 | Next.js |
-| `backend` | 1337 | Strapi (в т.ч. `/admin`, `/_health`) |
-| `imgproxy` | 8080 | обработка изображений |
-| `search` | 7700 | Meilisearch (`/health`) |
 
-У всех upstream включён `keepalive 32`. Есть зоны кеша `frontend_cache` / `api_cache`, заголовок `X-Cache-Status`, редирект `www → apex`.
+Зона кеша `frontend_cache` (статика `/_next/static` и файлы по расширениям), заголовок `X-Cache-Status`, редирект `www → apex`, `/health` отдаётся самим nginx.
+
+### ⚠️ Отдельная локация `/api/stream` — не украшение
+
+SSE-поток оповещений вынесен в свою локацию ровно из-за буферизации: с дефолтным `proxy_buffering` nginx копит ответ и отдаёт события пачками с задержкой в десятки секунд — лента выглядит «залипшей», хотя приложение работает. Плюс `proxy_read_timeout 24h`: между событиями GCN может молчать часами, пинг раз в 15 с лишь удерживает соединение, рвать его по таймауту нельзя.
+
+При правке шаблона эту локацию нельзя схлопывать с `location /`.
 
 > ⚠️ `server_name` собираются из `domain`, править шаблон руками не нужно.
 
@@ -232,116 +276,50 @@ ansible-playbook playbooks/prod-routine.yml -i inventory/hosts.ini \
 
 ## 🔒 TLS (certbot)
 
-Плейбук ставит certbot, но **сертификаты не выпускает** — нужен уже указывающий на сервер DNS. После прогона и настройки DNS выпустите вручную (подставьте свой `domain`):
+Плейбук ставит certbot, но **сертификаты не выпускает** — нужен уже указывающий на сервер DNS. После прогона и настройки DNS выпустите вручную:
 
 ```bash
 ssh <user>@<server>
-sudo certbot --nginx \
-  -d example.ru -d www.example.ru \
-  -d admin.example.ru \
-  -d search.example.ru \
-  -d imgproxy.example.ru
+sudo certbot --nginx -d gcn.testing-nasa-notifications.com
 ```
 
-certbot сам пропишет `listen 443 ssl` и пути к сертификатам и настроит автопродление.
+`www.` в списке нет намеренно — см. раздел про домен выше.
 
-## 📦 Перенос данных (`migrate-data-to-prod.yml`)
-
-Переносит **Postgres** (`pg_dump -Fc` → `pg_restore`) и **uploads**. Meilisearch не трогается — после миграции при необходимости переиндексируйте из Strapi.
-
-Плейбук состоит из **двух play'ев**:
-
-1. `hosts: source` — выгрузка с исходного сервера (выполняется только при `migrate_source=remote`, иначе пропускается);
-2. `hosts: production` — импорт на прод.
-
-На проде должен уже стоять стек: контейнер `{{ project_slug }}_postgres` и том `{{ project_slug }}_strapi-uploads`.
-
-Порядок работы: стоп `backend`/`imgproxy` (если выбрано) → бэкап текущих данных в `/var/www/<user>/migrate/<epoch>/backup` → импорт → возврат владельца uploads (uid/gid `1000`, пользователь `node` в контейнере Strapi) → подъём сервисов.
-
-### Local → prod
-
-**Ручной `pg_dump` больше не нужен — `run.sh` делает всё сам:**
-
-```bash
-cd ansible
-./run.sh   # → 2) Migrate data → 2) From local Docker
-```
-
-Скрипт:
-
-1. проверяет, что установлен `docker`;
-2. проверяет, что **запущен** контейнер `<project_slug>_postgres` и существует том `<project_slug>_strapi-uploads` — иначе останавливается с понятным сообщением;
-3. снимает дамп во временный файл: `docker exec <slug>_postgres pg_dump -U $POSTGRES_USER -d $POSTGRES_DB -Fc`;
-4. выгружает uploads: `docker cp` из контейнера `<slug>_backend`, а если его нет — через `docker run` на образе локального postgres (чтобы не тянуть ничего из Docker Hub);
-5. подставляет пути в `migrate_local_db_path` / `migrate_local_uploads_path` и удаляет временные файлы по завершении.
-
-> ⚠️ Локальный стек должен быть **поднят** (`docker compose up`), а `project_slug` — совпадать с `PROJECT_SLUG` локального окружения.
-
-### Remote → prod (server → server)
-
-```bash
-./run.sh   # → 2) Migrate data → 1) From remote server
-```
-
-Скрипт дополнительно спросит IP и пользователя source-сервера и `source_project_slug`.
-
-На source ожидаются контейнер `{{ source_project_slug }}_postgres` и том
-`{{ source_project_slug }}_strapi-uploads` — **это slug ДОНОРА**, он часто отличается от
-production. Дефолт в `run.sh` подставляет `project_slug` прода, поэтому Enter здесь нажимать нельзя.
-
-#### ⚠️ Обязательное требование: SSH source → production
-
-Файлы едут **напрямую с source на прод** через `rsync`, минуя вашу машину. Значит пользователю
-source нужен доступ по ключу к пользователю прода, а тому — `NOPASSWD` sudo (rsync на приёмной
-стороне запускается через `--rsync-path=sudo rsync`, и ввести пароль туда некому).
-
-Проверить **до** запуска:
-
-```bash
-# 1. Ключ source → production
-ssh <source_user>@<source_ip> 'ssh -o BatchMode=yes <prod_user>@<prod_ip> "echo SSH_OK"'
-
-# 2. Беспарольный sudo на проде
-ssh <prod_user>@<prod_ip> 'sudo -n true && echo NOPASSWD_OK'
-```
-
-Если первая команда даёт `Permission denied` — разложить ключ:
-
-```bash
-ssh <source_user>@<source_ip> 'test -f ~/.ssh/id_ed25519 || ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519 >/dev/null 2>&1; cat ~/.ssh/id_ed25519.pub' \
-  | ssh <prod_user>@<prod_ip> 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && k=$(cat) && touch ~/.ssh/authorized_keys && grep -qxF "$k" ~/.ssh/authorized_keys || echo "$k" >> ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys'
-```
-
-> После миграции этот ключ стоит удалить с прода — он больше не нужен.
-
-**Как выглядит проблема, если не проверить.** Задача `Push exported files from source server to
-production` висит бесконечно без вывода: rsync поднимает свою ssh-сессию, та упирается в запрос
-пароля, а ответить некому. Выглядит как «очень долгая передача», хотя не передано ни байта.
-Диагностика — посмотреть процессы на source: при реальной передаче у `rsync` растёт CPU-время.
-
-```bash
-ssh <source_user>@<source_ip> 'ps aux | grep -E "rsync|ssh " | grep -v grep'
-```
-
-В `rsync_opts` добавлен `BatchMode=yes`, поэтому теперь такая ситуация падает за ~15 секунд с
-`Permission denied` вместо зависания.
+certbot сам пропишет `listen 443 ssl`, пути к сертификатам и настроит автопродление.
 
 ## 🔗 Связь с CI/CD
 
 | Что создаёт плейбук | Как использует CI (`deploy_production`) |
 |---|---|
 | `project_user` + SSH-ключ | заходит по SSH как `SSH_USER` (= `project_user`) |
-| `/var/www/<project_user>` | `REMOTE_DIR`, куда `scp` compose + `.env` и запускается `docker compose up` |
+| `/var/www/<project_user>` | каталог деплоя: туда копируются compose + `.env` и запускается `docker compose up` |
 | Docker + группа `docker` | `docker compose pull/up` без sudo |
-| системный nginx | проксирует контейнеры (порты из `docker-compose.production.yml`) наружу |
+| системный nginx | проксирует контейнер frontend (`127.0.0.1:3000`) наружу |
 
-Соответствие: значение `SSH_USER` в CI-переменных = `project_user` из плейбука.
+### `project_dir` и каталог деплоя в CI — это один и тот же путь
+
+Обе стороны **выводят** его по одному правилу, руками путь нигде не вводится:
+
+| | Откуда берётся | Что делает |
+|---|---|---|
+| `project_dir` (Ansible) | `/var/www/{{ project_user }}` — дефолт в плейбуке | **создаёт** каталог, владелец `project_user:project_group` |
+| `REMOTE_DIR` (CI) | `/var/www/$SSH_USER` — вычисляется в шаге деплоя workflow | **копирует** туда compose и env-файлы, запускает `docker compose up` |
+
+⚠️ **Единственное, что должно совпадать вручную, — имя пользователя:**
+
+```
+project_user (ответ в run.sh)  ==  SSH_USER (секрет GitHub Actions)
+```
+
+Пути после этого сходятся сами. Разойдётся пользователь — разойдутся и каталоги: Ansible создаст `/var/www/<project_user>`, CI пойдёт в `/var/www/<SSH_USER>`, прав на запись там не окажется, деплой упадёт.
+
+Меняете префикс в `REMOTE_DIR` в [deploy.yml](../.github/workflows/deploy.yml) — передайте плейбуку тот же: `-e "project_dir=<префикс>/<project_user>"`.
+
+Подробности со стороны CI — в [08-ci-cd.md](./08-ci-cd.md#3-деплой).
 
 ## ♻️ Идемпотентность
 
 `prod-routine.yml` можно **прогонять повторно** — задачи идемпотентны (apt-состояния, `creates:` для docker-ключа, `state: present/link`). Повторный запуск безопасно доводит сервер до нужного состояния, например после правки `nginx.conf`.
-
-Плейбук миграции идемпотентным **не является** — каждый прогон импортирует данные заново поверх текущих (с бэкапом, если включён).
 
 ## 🔗 Связанные документы
 

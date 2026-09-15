@@ -7,8 +7,12 @@ services:
     env_file: postgres.env
     volumes:
       - postgres-data:/var/lib/postgresql/data/
+    # Только на loopback: приложения ходят в базу по внутренней сети `internal`,
+    # снаружи порт не нужен. Проброс на 0.0.0.0 выставлял бы Postgres в интернет —
+    # docker публикует порты в обход ufw/iptables, так что фаервол тут не спасает.
+    # Остаётся доступен локально с сервера (psql, дампы) и через `ssh -L 5432:...`.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     networks:
       - internal
     healthcheck:
@@ -38,8 +42,11 @@ services:
     env_file: frontend.env
     networks:
       - internal
+    # Наружу трафик пускает системный nginx (ansible/templates/nginx.conf) — он же
+    # держит TLS. Публикация на 0.0.0.0 давала бы второй вход на сайт по http://IP:3000,
+    # мимо сертификата, редиректа www→apex и кеша.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       postgres:
         condition: service_healthy

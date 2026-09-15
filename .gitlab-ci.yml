@@ -1,7 +1,0 @@
-include:
-  - component: git.snpdev.ru/saltpepper/ci-components/pipeline@1.1.0
-    inputs:
-      services: "frontend ingestor postgres"
-      required_vars: "DATABASE_URL NEXT_PUBLIC_SITE_URL GCN_CLIENT_ID GCN_CLIENT_SECRET"
-      npm_registry: "https://npm-mirror.gitverse.ru"   # РФ-зеркало (npmjs заблокирован из раннера)
-      domain_frontend: nasa-notifications.snpdev.ru
