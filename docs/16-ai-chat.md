@@ -21,9 +21,9 @@
 
 | Вопрос | Решение | Почему |
 |---|---|---|
-| LLM | Интерфейс `LlmProvider`, две реализации: Ollama и Anthropic. Переключение `LLM_PROVIDER`, по умолчанию `ollama` | Локально бесплатно и офлайн; в проде — облачный API без требований к железу |
+| LLM | Интерфейс `LlmProvider`, две реализации: Ollama и Anthropic. Переключение `LLM_PROVIDER` в любом окружении, включая прод; по умолчанию `ollama` | Провайдер — решение конфигурации, а не кода: self-hosted бесплатно, облачный API — без требований к железу |
 | Модель Claude | `ANTHROPIC_MODEL`, по умолчанию `claude-opus-5-5`; дешевле — `claude-sonnet-5-5`, `claude-haiku-4-5` | Выбор цены/качества — через env, без правки кода |
-| Модель Ollama (dev) | `qwen3:8b` (или `llama3.1:8b`) | Лучшее качество среди моделей, которые тянет ноутбук |
+| Модель Ollama | `OLLAMA_CHAT_MODEL`, по умолчанию `qwen3:8b`; для CPU-сервера 8 GB — `qwen3:4b` | Лучшее качество в своём классе размера; модель меняется через env |
 | Эмбеддинги | `EmbeddingProvider`, реализация — Ollama + `nomic-embed-text` (768 измерений) во всех окружениях | У Anthropic нет endpoint'а эмбеддингов; модель лёгкая (~300 МБ RAM), в рантайме эмбеддится только вопрос |
 | Векторное хранилище | `pgvector` в существующем Postgres | Без нового сервиса; фильтры SQL и вектора в одном запросе |
 | Корпус RAG | Справка по миссиям/топикам + GCN Circulars за последние 3 года + новые по мере прихода | Хватает для вопросов по свежим событиям; объём индекса умеренный |
@@ -37,7 +37,7 @@
 | Сервер | Вердикт |
 |---|---|
 | 1 vCPU / 2 GB | Недостаточно: Next + Postgres + ingestor + pgvector + ollama (эмбеддинги) не помещаются |
-| 4 vCPU / 8 GB | Рекомендуемый минимум. С Claude в проде — с запасом. Ollama-чат в проде возможен только с малой моделью (`qwen3:4b`) и `OLLAMA_NUM_PARALLEL=1` — очередь уже на 2–3 пользователях |
+| 4 vCPU / 8 GB | Рекомендуемый минимум. С `LLM_PROVIDER=anthropic` — с запасом. С `LLM_PROVIDER=ollama` — только малая модель (`qwen3:4b`), `OLLAMA_NUM_PARALLEL=1`, ~8–12 токенов/с, очередь уже на 2–3 пользователях |
 | 7950X3D / 9 GB | Аналогично 8 GB, CPU быстрее |
 
 Ориентировочная стоимость ответа Claude (~6k токенов входа с RAG, ~500 выхода):
@@ -62,7 +62,9 @@ Opus 5.5 ≈ $0.034, Sonnet 5.5 ≈ $0.017, Haiku 4.5 ≈ $0.009. Системн
   (`source`, `source_id`, `chunk_index`, `kind`, `event_name`, `title`, `url`, `content`,
   `published_at`, `embedding vector(768)`), `unique (source, source_id, chunk_index)`,
   HNSW-индекс по `embedding`, индекс по `event_name`.
-- Сервис `ollama` в compose: в dev — чат-модель и эмбеддинги, в prod — только эмбеддинги.
+- Сервис `ollama` в compose (одинаково во всех окружениях): при старте скачивает
+  `OLLAMA_EMBED_MODEL` всегда и `OLLAMA_CHAT_MODEL` — если `LLM_PROVIDER=ollama`.
+  Локально на Mac вместо контейнера — нативный Ollama (в Docker на Mac нет доступа к GPU).
 - Env (только серверные, никогда не `NEXT_PUBLIC_*`): `LLM_PROVIDER`, `OLLAMA_URL`,
   `OLLAMA_CHAT_MODEL`, `OLLAMA_EMBED_MODEL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`,
   лимиты (`CHAT_RATE_PER_MIN`, `CHAT_RATE_PER_DAY`, `CHAT_DAILY_CAP`).
@@ -122,7 +124,7 @@ Opus 5.5 ≈ $0.034, Sonnet 5.5 ≈ $0.017, Haiku 4.5 ≈ $0.009. Системн
 
 ### Этап 6. Деплой и документация
 
-- Переменные в GitLab, compose и Ansible (ollama + pull `nomic-embed-text`).
+- Переменные в GitLab, compose и Ansible (сервис ollama, volume под модели).
 - Раздел в `AGENTS.md`, обновить `03-environment-variables.md`, `04-docker-compose.md`.
 
 ## 6. Риски
