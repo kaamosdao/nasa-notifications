@@ -1,7 +1,8 @@
 services:
   postgres:
     container_name: ${PROJECT_SLUG}_postgres
-    image: dockerhub.timeweb.cloud/postgres:16.0-alpine
+    # pgvector — официальный Postgres 16 (debian) с расширением vector для RAG
+    image: dockerhub.timeweb.cloud/pgvector/pgvector:pg16
     platform: linux/amd64
     restart: unless-stopped
     env_file: postgres.env
@@ -58,9 +59,43 @@ services:
       start_period: 30s
     stop_grace_period: 20s
 
+  # LLM-сервер: эмбеддинги для RAG всегда, чат — если LLM_PROVIDER=ollama.
+  # Модели качаются при старте в volume, повторный pull лишь сверяет манифест.
+  # Скрипт инлайном: на сервер копируется только compose и env-файлы.
+  ollama:
+    container_name: ${PROJECT_SLUG}_ollama
+    image: dockerhub.timeweb.cloud/ollama/ollama:latest
+    restart: unless-stopped
+    env_file: ollama.env
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve & pid=$$!
+        trap 'kill $$pid' TERM INT
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        # без set -e: недоступный реестр не должен ронять сервер с уже скачанными моделями
+        ollama pull "$$OLLAMA_EMBED_MODEL" || echo "pull $$OLLAMA_EMBED_MODEL failed"
+        if [ "$$LLM_PROVIDER" = "ollama" ]; then
+          ollama pull "$$OLLAMA_CHAT_MODEL" || echo "pull $$OLLAMA_CHAT_MODEL failed"
+        fi
+        wait $$pid
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "ollama show \"$${OLLAMA_EMBED_MODEL}\" >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # первый старт качает модели (чат-модель — гигабайты)
+      start_period: 30m
+
 volumes:
   postgres-data:
     name: ${PROJECT_SLUG}_postgres-data
+  ollama-models:
+    name: ${PROJECT_SLUG}_ollama-models
 
 networks:
   internal:

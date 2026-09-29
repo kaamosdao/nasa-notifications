@@ -1,8 +1,8 @@
 services:
   postgres:
     container_name: ${PROJECT_SLUG}_postgres
-    platform: linux/amd64 #for platform error on Apple M1 chips
-    image: dockerhub.timeweb.cloud/postgres:16.0-alpine
+    # pgvector — официальный Postgres 16 (debian) с расширением vector для RAG
+    image: dockerhub.timeweb.cloud/pgvector/pgvector:pg16
     restart: unless-stopped
     env_file:
       - ./.env
@@ -11,7 +11,8 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data/
     ports:
-      - "5432:5432"
+      # порт на хосте переопределяется, если 5432 занят локальным Postgres
+      - "${POSTGRES_PORT:-5432}:5432"
     networks:
       - internal
     healthcheck:
@@ -65,9 +66,41 @@ services:
       postgres:
         condition: service_healthy
 
+  # Опционально (`docker compose --profile ollama up`): на Mac Ollama ставится нативно —
+  # в Docker на Mac нет доступа к GPU. Логика старта — как в docker-compose.production.yml.
+  ollama:
+    container_name: ${PROJECT_SLUG}_ollama
+    image: dockerhub.timeweb.cloud/ollama/ollama:latest
+    profiles: ["ollama"]
+    restart: unless-stopped
+    # не env_file: контейнеру не нужны секреты GCN и БД
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen3:8b}
+      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve & pid=$$!
+        trap 'kill $$pid' TERM INT
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        ollama pull "$$OLLAMA_EMBED_MODEL" || echo "pull $$OLLAMA_EMBED_MODEL failed"
+        if [ "$$LLM_PROVIDER" = "ollama" ]; then
+          ollama pull "$$OLLAMA_CHAT_MODEL" || echo "pull $$OLLAMA_CHAT_MODEL failed"
+        fi
+        wait $$pid
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    networks:
+      - internal
+
 volumes:
   postgres-data:
     name: ${PROJECT_SLUG}_postgres-data
+  ollama-models:
+    name: ${PROJECT_SLUG}_ollama-models
   frontend-node-modules:
     name: ${PROJECT_SLUG}_frontend-node-modules
   frontend-next:

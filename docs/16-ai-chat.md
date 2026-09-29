@@ -3,7 +3,7 @@
 Рабочий план фичи «спросить нейросеть про notice». Источник правды по её архитектурным
 решениям — этот файл; общий план проекта — [`15-plan.md`](15-plan.md).
 
-Статус: **план согласован, реализация не начата.**
+Статус: **этап 0 выполнен** (инфраструктура), дальше — этап 1.
 
 ## 1. Что делаем
 
@@ -55,16 +55,19 @@ Opus 5.5 ≈ $0.034, Sonnet 5.5 ≈ $0.017, Haiku 4.5 ≈ $0.009. Системн
 
 ## 5. Этапы
 
-### Этап 0. Инфраструктура
+### Этап 0. Инфраструктура — готово
 
-- Образ Postgres → `pgvector/pgvector:pg16`.
+- Образ Postgres → `pgvector/pgvector:pg16`. Он на debian (glibc), прежний — alpine (musl):
+  порядок сортировки текста разный, поэтому `002-rag.sql` начинается с `reindex` существующих таблиц.
 - Миграция `services/ingestor/sql/002-rag.sql`: `create extension vector`, таблица `kb_chunks`
   (`source`, `source_id`, `chunk_index`, `kind`, `event_name`, `title`, `url`, `content`,
   `published_at`, `embedding vector(768)`), `unique (source, source_id, chunk_index)`,
   HNSW-индекс по `embedding`, индекс по `event_name`.
 - Сервис `ollama` в compose (одинаково во всех окружениях): при старте скачивает
   `OLLAMA_EMBED_MODEL` всегда и `OLLAMA_CHAT_MODEL` — если `LLM_PROVIDER=ollama`.
-  Локально на Mac вместо контейнера — нативный Ollama (в Docker на Mac нет доступа к GPU).
+  Локально на Mac вместо контейнера — нативный Ollama (в Docker на Mac нет доступа к GPU);
+  контейнер в `docker-compose.yml` опционален: `docker compose --profile ollama up`.
+  На прод env сервиса уходит отдельным `ollama.env` (`ci/env/ollama.env.tpl`).
 - Env (только серверные, никогда не `NEXT_PUBLIC_*`): `LLM_PROVIDER`, `OLLAMA_URL`,
   `OLLAMA_CHAT_MODEL`, `OLLAMA_EMBED_MODEL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`,
   лимиты (`CHAT_RATE_PER_MIN`, `CHAT_RATE_PER_DAY`, `CHAT_DAILY_CAP`).
