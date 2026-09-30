@@ -32,6 +32,7 @@ push в main
 | `DATABASE_NAME` | Имя БД |
 | `GCN_CLIENT_ID` | Client ID gcn.nasa.gov |
 | `GCN_CLIENT_SECRET` | Client Secret gcn.nasa.gov |
+| `ANTHROPIC_API_KEY` | Ключ API Claude; нужен только при `LLM_PROVIDER=anthropic` (иначе workflow его не требует) |
 
 `GITHUB_TOKEN` заводить не нужно — GitHub выдаёт его каждому запуску сам.
 
@@ -42,9 +43,21 @@ push в main
 | `NEXT_PUBLIC_SITE_URL` | Публичный URL сайта (`https://gcn.testing-nasa-notifications.com`) | ❌ workflow падает |
 | `GCN_TOPICS` | csv топиков | пусто → дефолтный список ingestor'а |
 | `GCN_BACKFILL_DAYS` | Глубина первичной загрузки | `7` |
-| `GCN_CONSUMER_GROUP` | Consumer group Kafka | `nasa-notifications` |
+| `GCN_CONSUMER_GROUP` | Consumer group Kafka | `nasa-notifications-production` |
 | `NOTICES_LIVE_LIMIT` | Карточек в DOM в live-режиме | `500` |
 | `NEXT_PUBLIC_YANDEX_TRACKING_ID` | Счётчик | пусто |
+| `LLM_PROVIDER` | Кто отвечает в AI-чате: `ollama` \| `anthropic` | `ollama` |
+| `OLLAMA_CHAT_MODEL` | Чат-модель Ollama | `qwen3:4b` |
+| `OLLAMA_EMBED_MODEL` | Модель эмбеддингов | `nomic-embed-text` |
+| `OLLAMA_NUM_PARALLEL` | Параллельных генераций Ollama | `1` |
+| `ANTHROPIC_MODEL` | Модель Claude | `claude-sonnet-5-5` |
+| `ANTHROPIC_EFFORT` | `low` \| `medium` \| `high` \| `none` (`none` — для `claude-haiku-4-5`) | `low` |
+| `CHAT_RATE_PER_MIN` / `CHAT_RATE_PER_DAY` | Вопросов с IP в минуту / сутки | `10` / `50` |
+| `CHAT_DAILY_CAP` | Общий потолок вопросов в сутки | `1000` |
+
+Смысл переменных AI-чата — [03-environment-variables.md](./03-environment-variables.md#-ai-чат).
+Смена провайдера или модели — правка переменной и перезапуск workflow (`workflow_dispatch`),
+код не меняется.
 
 Workflow проверяет обязательные значения **до** сборки и падает с понятным `::error::`, а не через десять минут на упавшем контейнере.
 
@@ -114,9 +127,10 @@ Ingestor секретов на сборке не требует: он читае
 ## 🚀 Деплой
 
 ```
-scp docker-compose.production.yml .env frontend.env ingestor.env postgres.env
+scp docker-compose.production.yml .env frontend.env ingestor.env postgres.env ollama.env
     → /var/www/$SSH_USER/
 ssh → chmod 600 на env-файлы → docker login → compose pull → up -d --remove-orphans → logout
+    → фоновый kb:index
 ```
 
 - `--remove-orphans` убирает контейнеры сервисов, удалённых из compose (наследие Strapi/imgproxy/meili);
@@ -125,14 +139,32 @@ ssh → chmod 600 на env-файлы → docker login → compose pull → up -
 
 `concurrency: cancel-in-progress` гарантирует, что два выката не столкнутся на одном сервере.
 
+### База знаний AI-чата (`kb:index`)
+
+После `up -d` деплой запускает разовый контейнер `${PROJECT_SLUG}_kb-index` (`compose run -d`
+из образа ingestor): он ждёт, пока ollama скачает модель эмбеддингов, и индексирует справку
+и архив циркуляров за 3 года. Первый выкат наполняет базу (долго: эмбеддинги на CPU), следующие
+пропускают неизменённое, добирают пропущенное и удаляют циркуляры старше окна. Деплой прогон
+не ждёт; прошлый незавершённый прогон удаляется и начинается заново — индексация идемпотентна.
+Новые циркуляры между деплоями индексирует сам ingestor.
+
+```bash
+docker logs -f nasa-notifications_kb-index    # прогресс раз в 500 документов, в конце «готово»
+```
+
+У `run`-контейнера restart policy `no`: после выхода он не перезапускается, а остаётся
+остановленным с логами до следующего деплоя.
+
 ## 🩺 Порядок запуска контейнеров
 
 ```
 postgres (healthy) ─┬─▶ ingestor
                     └─▶ frontend
+ollama (независимо; первый старт качает модели в volume)
 ```
 
-`ingestor` и `frontend` ждут `service_healthy` у Postgres. У `ingestor` `stop_grace_period: 20s` — по SIGTERM он вызывает `consumer.disconnect()`, иначе ребалансировка consumer-группы висит до таймаута.
+`ingestor` и `frontend` ждут `service_healthy` у Postgres. От ollama они не зависят: пока её нет,
+лента работает, а чат отвечает без векторного поиска. У `ingestor` `stop_grace_period: 20s` — по SIGTERM он вызывает `consumer.disconnect()`, иначе ребалансировка consumer-группы висит до таймаута.
 
 ## 🌐 Порты и nginx
 
@@ -143,6 +175,7 @@ postgres (healthy) ─┬─▶ ingestor
 | `frontend` | `127.0.0.1:3000` — наружу его отдаёт системный nginx |
 | `postgres` | `127.0.0.1:5432` — только локально (psql, дампы, `ssh -L`) |
 | `ingestor` | не публикуется |
+| `ollama` | не публикуется — доступна только по внутренней сети |
 
 Публикация на `0.0.0.0` открыла бы Postgres в интернет: **docker публикует порты в обход ufw/iptables**, фаервол на сервере это не закрывает.
 
@@ -162,6 +195,9 @@ Reverse-proxy и TLS настраивает Ansible — [10-ansible-playbook.md]
 | Контейнер не находит БД | `DATABASE_URL` с `localhost` | URL собирается workflow с хостом `postgres`; свой секрет с URL не заводить |
 | `ERR_PNPM_IGNORED_BUILDS` | Build-скрипт зависимости не одобрен | Добавить пакет в `allowBuilds` в `pnpm-workspace.yaml` |
 | Лента «залипает», события пачками | Буферизация SSE на nginx | Проверить локацию `/api/stream` в `ansible/templates/nginx.conf` |
+| `LLM_PROVIDER=anthropic requires secret ANTHROPIC_API_KEY` | Провайдер Claude без ключа | Завести секрет или вернуть `LLM_PROVIDER=ollama` |
+| Чат: `credit balance is too low` в логе frontend | Пустой баланс API (подписка Claude Pro его не пополняет) | console.anthropic.com → Billing |
+| Чат отвечает без циркуляров | `kb:index` не дошёл до конца | `docker logs nasa-notifications_kb-index` |
 
 Логи на сервере:
 

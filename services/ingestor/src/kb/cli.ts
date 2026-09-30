@@ -14,7 +14,8 @@ import type { KbDocument } from "./types.js";
  * системная, и тысяча одинаковых warning'ов в логе ничем не лучше.
  *
  *   dev:  pnpm --filter ingestor kb:index
- *   прод: docker compose exec ingestor node services/ingestor/dist/kb/cli.js
+ *   прод: запускается фоном на каждом деплое (.github/workflows/deploy.yml), вручную —
+ *         docker compose exec ingestor node services/ingestor/dist/kb/cli.js
  */
 const CIRCULARS_YEARS = 3;
 const PROGRESS_EVERY = 500;

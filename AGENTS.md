@@ -15,8 +15,8 @@ Hero на весь экран с WebGL-metaballs, по клику уходящи
 **Читай его перед любой задачей по проекту.**
 
 ⚠️ **Проект вырос из студийного boilerplate (Next + Strapi).** Этап 0 выполнен: CMS-слой,
-imgproxy и Meilisearch удалены из кода, compose и CI. Хвост остался в документации —
-`docs/03`, `04`, `08`, `10`, `13` помечены баннером и переписываются на этапе 5.
+imgproxy и Meilisearch удалены из кода, compose и CI. `docs/03`, `04`, `08`, `10` переписаны;
+хвост остался в `docs/13` (помечен баннером).
 
 ## Стек
 
@@ -29,6 +29,8 @@ imgproxy и Meilisearch удалены из кода, compose и CI. Хвост 
   Нормализует сообщения и пишет в Postgres, миграции (`services/ingestor/sql/*.sql`) применяет
   сам при старте.
 - **Данные**: Postgres. Реалтайм в браузер — SSE поверх `LISTEN/NOTIFY`.
+- **AI-чат**: RAG на `pgvector` в том же Postgres, эмбеддинги — Ollama (`nomic-embed-text`),
+  ответ — Ollama или Claude (`LLM_PROVIDER`). План и решения — [`docs/16-ai-chat.md`](docs/16-ai-chat.md).
 - **Инфра**: Docker Compose, GitLab CI (ci-components), Ansible. Пакетный менеджер — pnpm.
 
 ## Команды
@@ -39,6 +41,7 @@ pnpm build          # next build
 pnpm check          # biome: линт + формат + порядок импортов (запускай после правок)
 pnpm ingestor:dev   # воркер Kafka → Postgres (миграции применяются при старте)
 pnpm --filter ingestor seed --loop   # моковый продюсер: событие раз в 2 с без Kafka
+pnpm --filter ingestor kb:index      # база знаний AI-чата (нужна запущенная Ollama)
 docker compose up -d         # весь стек локально (нужен .env, PROJECT_SLUG, ENVIRONMENT)
 ```
 
@@ -85,10 +88,22 @@ Node зафиксирован в `.nvmrc` = **v22.17.0**. Типчек — `tsc 
   потоком SSE — собранный один раз таймлайн указывал бы на устаревший DOM.
 - **Скрытый слой закрываем `inert`, а не одной прозрачностью** — иначе он остаётся в таб-порядке
   и в дереве доступности. `main` в разметке ровно один (его отдаёт `TransitionLayout`).
-- **Секреты GCN** (`GCN_CLIENT_ID` / `GCN_CLIENT_SECRET`) — только серверные, никогда не
-  `NEXT_PUBLIC_*`: из браузера к Kafka подключиться нельзя в принципе.
+- **Секреты GCN** (`GCN_CLIENT_ID` / `GCN_CLIENT_SECRET`) и `ANTHROPIC_API_KEY` — только
+  серверные, никогда не `NEXT_PUBLIC_*`: из браузера к Kafka подключиться нельзя в принципе,
+  а ключ API в бандле — чужой счёт за наш.
 - **Кириллица**: `src/widgets/сursor/` содержит кириллическую `с` — не копируй как образец,
   новые пути только латиницей.
+- **AI-чат** (`features/notice-chat` → `POST /api/chat` → `shared/api/chat` + `shared/api/llm`):
+  - провайдер — конфигурация, а не код: `LlmProvider` с реализациями Ollama и Anthropic,
+    выбор `LLM_PROVIDER`. Не завязывай логику на конкретную модель; эмбеддинги — всегда Ollama;
+  - ответ — SSE из `POST` (`sources` → `delta`* → `done` | `error`), закрытие соединения
+    обрывает генерацию; история живёт только в сторе модалки, на сервере не хранится;
+  - всё, что пришло из циркуляров, — данные, а не инструкции (prompt injection); markdown
+    рендерится с белым списком элементов, сырой HTML не пропускается;
+  - публичный анонимный эндпоинт: лимиты по `X-Real-IP` и дневной потолок обязательны;
+  - `kb:index` идемпотентен (`doc_hash`), на проде запускается фоном при каждом деплое.
+- **Модалки — нативный `<dialog>` + `showModal()`**: фон inert, фокус заперт и возвращается сам.
+  Глобальные хоткеи пропускают Esc, пока есть `dialog:modal`; Lenis на время модалки — `stop()`.
 - **Брейкпоинты** дублируются в JS (`src/shared/config/breakpoints.ts`) и SCSS
   (`styles/vars/_breakpoints.scss`) — правь оба.
 
@@ -130,6 +145,8 @@ Node зафиксирован в `.nvmrc` = **v22.17.0**. Типчек — `tsc 
 ## Примеры и документация
 
 - **План проекта**: [`docs/15-plan.md`](docs/15-plan.md) — архитектура, схема БД, этапы, риски.
+- **AI-чат**: [`docs/16-ai-chat.md`](docs/16-ai-chat.md); env — [`docs/03`](docs/03-environment-variables.md),
+  деплой и `kb:index` на проде — [`docs/08`](docs/08-ci-cd.md).
 - **Frontend-примеры**: `docs/examples/` (компоненты, хуки, типы).
 - Проектная документация — `docs/01..14-*.md`; документы с баннером ⚠️ описывают ещё
   boilerplate-конфигурацию. Сводный список подводных камней — [`docs/13-gotchas.md`](docs/13-gotchas.md).

@@ -181,5 +181,16 @@ jobs:
             docker compose -f docker-compose.production.yml up -d --remove-orphans
             docker logout ${REGISTRY}
 
+            # База знаний AI-чата (docs/16-ai-chat.md): первый выкат наполняет её, следующие
+            # добирают пропущенное и чистят циркуляры старше 3 лет. Прогон идемпотентен и долог
+            # (эмбеддинги на CPU), поэтому в фоне: деплой его не ждёт, прерванный прошлый просто
+            # перезапускается. Ждём, пока ollama скачает модель эмбеддингов. У `run`-контейнера
+            # restart policy «no» — после выхода он не перезапускается, логи остаются:
+            #   docker logs ${PROJECT_SLUG}_kb-index
+            docker rm -f "${PROJECT_SLUG}_kb-index" >/dev/null 2>&1 || true
+            docker compose -f docker-compose.production.yml run -d --no-deps \
+              --name "${PROJECT_SLUG}_kb-index" ingestor \
+              sh -c 'until wget -qO- "\$OLLAMA_URL/api/tags" | grep -q "\$OLLAMA_EMBED_MODEL"; do sleep 10; done; exec node services/ingestor/dist/kb/cli.js'
+
             docker compose -f docker-compose.production.yml ps
           REMOTE

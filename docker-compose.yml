@@ -64,6 +64,10 @@ services:
       - internal
     env_file:
       - ./.env
+    environment:
+      # как у ingestor: в .env адреса для нативного запуска (localhost)
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      OLLAMA_URL: ${OLLAMA_DOCKER_URL:-http://host.docker.internal:11434}
     depends_on:
       postgres:
         condition: service_healthy

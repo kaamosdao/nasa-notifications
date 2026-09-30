@@ -3,8 +3,9 @@
 Рабочий план фичи «спросить нейросеть про notice». Источник правды по её архитектурным
 решениям — этот файл; общий план проекта — [`15-plan.md`](15-plan.md).
 
-Статус: **этапы 0–5 выполнены** (инфраструктура, база знаний, индексация, LLM-слой,
-retrieval и API, UI), дальше — этап 6 (деплой и документация).
+Статус: **все этапы выполнены** (инфраструктура, база знаний, индексация, LLM-слой,
+retrieval и API, UI, деплой и документация). Перед продом: вычитать статьи
+`services/ingestor/knowledge/*.md`, проверить реальный ответ Claude.
 
 ## 1. Что делаем
 
@@ -211,10 +212,21 @@ Opus 5.5 ≈ $0.034, Sonnet 5.5 ≈ $0.017, Haiku 4.5 ≈ $0.009. Системн
 - Проверено headless Chrome: открытие, фокус в поле, ответ со стримингом и источниками,
   Stop, Esc, клик по фону, возврат фокуса, мобильная раскладка.
 
-### Этап 6. Деплой и документация
+### Этап 6. Деплой и документация — готово
 
-- Переменные в GitLab, compose и Ansible (сервис ollama, volume под модели).
-- Раздел в `AGENTS.md`, обновить `03-environment-variables.md`, `04-docker-compose.md`.
+- CI — GitHub Actions (`.github/workflows/deploy.yml`), не GitLab: переменные чата
+  с дефолтами, `ANTHROPIC_API_KEY` — секрет, проверяется только при `LLM_PROVIDER=anthropic`.
+  `ollama.env` уходит на сервер вместе с остальными env-файлами.
+- Сервис ollama и volume `ollama-models` — в compose с этапа 0; nginx `/api/chat` —
+  с этапа 4. Ansible дополнительной настройки не требует.
+- `kb:index` на проде: после `up -d` деплой запускает фоном разовый контейнер
+  `${PROJECT_SLUG}_kb-index` (`compose run -d`, restart policy `no`), он ждёт модель
+  эмбеддингов в ollama. Первый выкат наполняет базу, следующие чистят циркуляры старше
+  3 лет. Логи — `docker logs <slug>_kb-index`.
+- Локальный compose: frontend получает `DATABASE_URL`/`OLLAMA_URL` для контейнера, как ingestor
+  (в `.env` — `localhost` для нативного запуска).
+- Документация: раздел в `AGENTS.md`; `03-environment-variables.md` и `04-docker-compose.md`
+  переписаны (были от boilerplate); `08-ci-cd.md`, `10-ansible-playbook.md` дополнены.
 
 ## 6. Риски
 
