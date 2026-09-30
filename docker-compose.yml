@@ -38,6 +38,8 @@ services:
     environment:
       # внутри compose Postgres доступен по имени сервиса, а не по localhost
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      # Ollama на Mac нативная, localhost контейнера — не хост; с --profile ollama — http://ollama:11434
+      OLLAMA_URL: ${OLLAMA_DOCKER_URL:-http://host.docker.internal:11434}
     depends_on:
       postgres:
         condition: service_healthy

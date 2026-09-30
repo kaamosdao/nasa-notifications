@@ -3,6 +3,8 @@ import { migrate } from "./db/migrate.js";
 import { insertNotices, type NoticeRecord, touchState } from "./db/notices.js";
 import { pool } from "./db/pool.js";
 import { createGcnConsumer } from "./kafka/consumer.js";
+import { indexInBackground } from "./kb/indexer.js";
+import { toCircularDocument } from "./kb/sources/circulars.js";
 import { logger } from "./logger.js";
 import { parseNotice } from "./parsers/index.js";
 
@@ -51,6 +53,14 @@ const start = async () => {
       }
 
       const inserted = await insertNotices(records);
+
+      if (batch.topic === config.circularsTopic) {
+        indexInBackground(
+          records
+            .map((record) => toCircularDocument(record.payload))
+            .filter((document) => document !== null),
+        );
+      }
 
       if (inserted.length) {
         await touchState({ lastNoticeAt: new Date().toISOString() });

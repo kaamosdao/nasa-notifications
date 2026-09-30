@@ -21,6 +21,36 @@ const circularSchema = z.object({
 });
 
 /**
+ * Имена событий в том виде, в каком их несут notice: по точному совпадению чат
+ * находит циркуляры про событие карточки. Порядок — приоритет, если имён несколько.
+ */
+const EVENT_NAME_PATTERNS = [
+  // суперсобытие LVK: 'LIGO/Virgo/KAGRA S250206dm' → 'S250206dm' (= superevent_id)
+  /\bS\d{6}[a-z]{1,3}\b/,
+  /\bGRB \d{6}[A-Z]\b/,
+  /\bIceCube-\d{6}[A-Z]\b/,
+  /\bEP\d{6}[a-zA-Z]\b/,
+  /\bFRB \d{8}[A-Z]\b/,
+  /\bsb\d{8}\b/,
+];
+
+/** eventId от NASA есть у ~92% циркуляров; у остальных имя ищем в subject. */
+const toEventName = (eventId: string | null | undefined, subject: string) => {
+  for (const text of [eventId, subject]) {
+    for (const pattern of EVENT_NAME_PATTERNS) {
+      const match = text?.match(pattern);
+
+      if (match) {
+        return match[0];
+      }
+    }
+  }
+
+  // незнакомый формат (старые 'LIGO/Virgo G194575') — оставляем как есть
+  return eventId || null;
+};
+
+/**
  * Циркуляр → документ базы знаний или null, если форма не та.
  * `submitter`/`email` намеренно не берём: персональные данные модели не нужны.
  */
@@ -38,7 +68,7 @@ export const toCircularDocument = (value: unknown): KbDocument | null => {
     sourceId: String(circular.circularId),
     kind: null,
     topics: [],
-    eventName: circular.eventId || null,
+    eventName: toEventName(circular.eventId, circular.subject),
     title: circular.subject,
     url: `https://gcn.nasa.gov/circulars/${circular.circularId}`,
     content: circular.body,

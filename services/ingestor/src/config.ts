@@ -33,6 +33,8 @@ const schema = z.object({
   GCN_BACKFILL_DAYS: z.coerce.number().min(0).max(30).default(7),
   GCN_CONSUMER_GROUP: z.string().min(1).default("nasa-notifications"),
   DATABASE_URL: z.string().min(1),
+  OLLAMA_URL: z.url().default("http://localhost:11434"),
+  OLLAMA_EMBED_MODEL: z.string().min(1).default("nomic-embed-text"),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -56,6 +58,12 @@ export const config = {
     topics: env.GCN_TOPICS?.length ? env.GCN_TOPICS : DEFAULT_TOPICS,
     backfillDays: env.GCN_BACKFILL_DAYS,
   },
+  ollama: {
+    url: env.OLLAMA_URL,
+    embedModel: env.OLLAMA_EMBED_MODEL,
+  },
+  /** Циркуляры после вставки в ленту ещё и индексируются в базу знаний чата. */
+  circularsTopic: "gcn.circulars",
   /** Топик-пульс: в БД не пишем, только обновляем отметку liveness. */
   heartbeatTopic: "gcn.heartbeat",
   /** Ключ в service_state, под которым живёт статус воркера. */
