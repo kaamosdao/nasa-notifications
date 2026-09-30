@@ -67,7 +67,9 @@ jobs:
           # Без GPU параллельные генерации лишь делят CPU: очередь честнее
           OLLAMA_NUM_PARALLEL: ${{ vars.OLLAMA_NUM_PARALLEL || '1' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-opus-5-5' }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL || 'claude-sonnet-5-5' }}
+          # Короткие объяснения не требуют глубоких размышлений; для haiku-4-5 — none
+          ANTHROPIC_EFFORT: ${{ vars.ANTHROPIC_EFFORT || 'low' }}
           CHAT_RATE_PER_MIN: ${{ vars.CHAT_RATE_PER_MIN || '10' }}
           CHAT_RATE_PER_DAY: ${{ vars.CHAT_RATE_PER_DAY || '50' }}
           CHAT_DAILY_CAP: ${{ vars.CHAT_DAILY_CAP || '1000' }}

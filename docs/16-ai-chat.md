@@ -3,7 +3,7 @@
 Рабочий план фичи «спросить нейросеть про notice». Источник правды по её архитектурным
 решениям — этот файл; общий план проекта — [`15-plan.md`](15-plan.md).
 
-Статус: **этапы 0–2 выполнены** (инфраструктура, база знаний, индексация), дальше — этап 3.
+Статус: **этапы 0–3 выполнены** (инфраструктура, база знаний, индексация, LLM-слой), дальше — этап 4.
 
 ## 1. Что делаем
 
@@ -22,7 +22,7 @@
 | Вопрос | Решение | Почему |
 |---|---|---|
 | LLM | Интерфейс `LlmProvider`, две реализации: Ollama и Anthropic. Переключение `LLM_PROVIDER` в любом окружении, включая прод; по умолчанию `ollama` | Провайдер — решение конфигурации, а не кода: self-hosted бесплатно, облачный API — без требований к железу |
-| Модель Claude | `ANTHROPIC_MODEL`, по умолчанию `claude-opus-5-5`; дешевле — `claude-sonnet-5-5`, `claude-haiku-4-5` | Выбор цены/качества — через env, без правки кода |
+| Модель Claude | `ANTHROPIC_MODEL`, по умолчанию `claude-sonnet-5-5`; качественнее — `claude-opus-5-5`, дешевле — `claude-haiku-4-5` | Для коротких объяснений по контексту Sonnet хватает, вдвое дешевле Opus. Выбор цены/качества — через env, без правки кода |
 | Модель Ollama | `OLLAMA_CHAT_MODEL`, по умолчанию `qwen3:8b`; для CPU-сервера 8 GB — `qwen3:4b` | Лучшее качество в своём классе размера; модель меняется через env |
 | Эмбеддинги | `EmbeddingProvider`, реализация — Ollama + `nomic-embed-text` (768 измерений) во всех окружениях | У Anthropic нет endpoint'а эмбеддингов; модель лёгкая (~300 МБ RAM), в рантайме эмбеддится только вопрос |
 | Векторное хранилище | `pgvector` в существующем Postgres | Без нового сервиса; фильтры SQL и вектора в одном запросе |
@@ -118,13 +118,33 @@ Opus 5.5 ≈ $0.034, Sonnet 5.5 ≈ $0.017, Haiku 4.5 ≈ $0.009. Системн
   `OLLAMA_EMBED_MODEL` (`nomic-embed-text`). В dev-compose контейнер ingestor ходит на
   нативную Ollama хоста через `host.docker.internal`.
 
-### Этап 3. LLM-слой (`src/shared/api/llm/`)
+### Этап 3. LLM-слой (`src/shared/api/llm/`) — готово
 
-- `LlmProvider.streamChat({ system, messages, signal }): AsyncIterable<string>`.
-  - `OllamaProvider` — `/api/chat` со стримингом NDJSON.
-  - `AnthropicProvider` — `@anthropic-ai/sdk`, streaming, `cache_control` на системном промпте.
-- `EmbeddingProvider.embed(text): Promise<number[]>` — `OllamaEmbeddingProvider`.
-- Фабрика по env, инстансы кэшируются в `globalThis` (как пул БД).
+- Контракты (`types.ts`): `LlmProvider.streamChat({ system, messages, signal })` →
+  `AsyncIterable<string>`, `EmbeddingProvider.embedQuery(text, signal)` → `number[]`.
+- Ollama (`ollama.ts`):
+  - `/api/chat` со стримингом NDJSON; при выходе из цикла (abort, ошибка) соединение
+    закрывается — Ollama прекращает генерацию;
+  - `think: false` — иначе qwen3 сначала «думает» сотни токенов (на CPU — десятки секунд
+    тишины);
+  - `num_ctx: 8192` — дефолт Ollama меньше промпта с RAG, лишнее молча отрезается
+    с начала вместе с системным промптом; `num_predict: 1024`;
+  - эмбеддинг вопроса с префиксом `search_query: ` (пара к `search_document: ` индексатора).
+- Anthropic (`anthropic.ts`): `@anthropic-ai/sdk`, `messages.stream`, наружу только
+  `text_delta`; `cache_control` на системном промпте; `signal` прокидывается в запрос.
+  - `max_tokens: 4096` — потолок, а не длина ответа: у Sonnet 5.5 и Opus 5.5 размышления
+    по умолчанию включены и входят в `max_tokens`. Длину задаёт промпт.
+  - `ANTHROPIC_EFFORT` (`low` | `medium` | `high` | `none`; в деплое по умолчанию `low`):
+    не все модели принимают effort — для `claude-haiku-4-5` нужен `none` (не передавать).
+    `none` вместо пустой строки: пустую переменную в GitHub Actions не завести.
+- Конфиг (`config.ts`): zod-схема env, читается при первом обращении, а не при импорте —
+  `next build` идёт без runtime-env. Пустое значение = не задано; `anthropic` без ключа —
+  ошибка конфигурации.
+- Фабрики `getLlmProvider()` / `getEmbeddingProvider()` (`index.ts`), инстансы в
+  `globalThis`. Эмбеддинги всегда Ollama.
+- Проверено локально: стрим qwen3:8b (первый токен ~7 с с холодной загрузкой модели),
+  abort обрывает генерацию, эмбеддинг 768, Anthropic с неверным ключом — 401
+  `AuthenticationError`. Реальный ответ Claude не проверялся (нет ключа).
 
 ### Этап 4. Retrieval и API
 
@@ -134,7 +154,6 @@ Opus 5.5 ≈ $0.034, Sonnet 5.5 ≈ $0.017, Haiku 4.5 ≈ $0.009. Системн
   - Zod-валидация; вопрос ≤ 1000 символов, история ≤ 10 реплик.
   - Контекст: строка notice + `payload` + найденные чанки с `url`.
   - Ответ — SSE: события `delta`, `sources`, `done`, `error`. Abort при закрытии соединения.
-  - `max_tokens` ≈ 1024.
 - Лимиты: rate limit по IP (in-memory, IP из `X-Real-IP` от nginx) — 10/мин и 50/сутки;
   глобальный дневной потолок запросов как страховка бюджета.
 - Системный промпт: роль (объясняет GCN-оповещения неспециалисту), отвечать только
