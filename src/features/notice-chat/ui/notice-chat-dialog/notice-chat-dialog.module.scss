@@ -65,12 +65,13 @@
 }
 
 .close {
+  display: grid;
   flex: 0 0 auto;
+  place-items: center;
   width: vw(32);
   height: vw(32);
+  padding: 0;
   color: var(--main-text-color);
-  font-size: vw(24);
-  line-height: 1;
   background: none;
   border: 1px solid var(--feed-card-border);
   border-radius: 50%;
@@ -79,7 +80,6 @@
   @include mq(md) {
     width: 32px;
     height: 32px;
-    font-size: 24px;
   }
 }
 

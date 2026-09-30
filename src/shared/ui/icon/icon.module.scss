@@ -18,27 +18,27 @@
 }
 
 .size {
-  &Xs {
+  &-xs {
     width: vw(12);
     height: vw(12);
   }
 
-  &S {
+  &-s {
     width: vw(16);
     height: vw(16);
   }
 
-  &M {
+  &-m {
     width: vw(24);
     height: vw(24);
   }
 
-  &L {
+  &-l {
     width: vw(28);
     height: vw(28);
   }
 
-  &Xl {
+  &-xl {
     width: vw(32);
     height: vw(32);
   }

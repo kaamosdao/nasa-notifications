@@ -19,6 +19,7 @@ import { useStore } from "zustand";
 import type { Notice } from "@entities/notice";
 
 import { MAX_QUESTION_LENGTH } from "@shared/api/chat/schema";
+import { Icon } from "@shared/ui/icon";
 import { prefersReducedMotion } from "@shared/utils/prefers-reduced-motion";
 
 import { createNoticeChatStore } from "../../model/chat-store";
@@ -206,7 +207,7 @@ export const NoticeChatDialog = (props: NoticeChatDialogProps) => {
             onClick={requestClose}
             aria-label="Close"
           >
-            ×
+            <Icon name="close" size="s" />
           </button>
         </header>
 
