@@ -125,6 +125,20 @@ export const getNoticeById = async (id: string): Promise<Notice | null> => {
   return rows[0] ? toNotice(rows[0]) : null;
 };
 
+/** Notice вместе с сырым `payload` — только для серверного кода (контекст AI-чата). */
+export const getNoticeWithPayload = async (
+  id: string,
+): Promise<{ notice: Notice; payload: unknown } | null> => {
+  const { rows } = await getPool().query<NoticeRow & { payload: unknown }>(
+    `select ${SELECT_FIELDS}, payload from notices where id = $1::bigint`,
+    [id],
+  );
+
+  return rows[0]
+    ? { notice: toNotice(rows[0]), payload: rows[0].payload }
+    : null;
+};
+
 /**
  * Всё, что появилось после указанного id, — от старых к новым.
  *
