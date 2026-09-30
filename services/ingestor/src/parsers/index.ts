@@ -2,6 +2,7 @@ import { logger } from "../logger.js";
 import { parseClassicText } from "./classic-text.js";
 import { parseFallback, parseGenericJson } from "./generic.js";
 import { parseCircular, parseGwAlert } from "./gw-alert.js";
+import { parseSvomVoEvent } from "./svom-voevent.js";
 import type { Parser } from "./types.js";
 
 /** topic → parser. Порядок важен: первое совпадение по префиксу выигрывает. */
@@ -9,6 +10,7 @@ const PARSERS: Array<[string, Parser]> = [
   ["igwn.gwalert", parseGwAlert],
   ["gcn.circulars", parseCircular],
   ["gcn.classic.text.", parseClassicText],
+  ["gcn.notices.svom.voevent", parseSvomVoEvent],
 ];
 
 const resolveParser = (topic: string): Parser =>

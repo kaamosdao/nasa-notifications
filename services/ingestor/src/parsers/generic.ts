@@ -8,13 +8,18 @@ const COORD_KEYS = [
 ] as const;
 
 const ERROR_KEYS = ["ra_dec_error", "error_radius", "radius", "err"];
+/**
+ * `ref_ID` — первым: у IceCube LVK nu track search событие карточки — это суперсобытие LVK.
+ * `instrument` сюда не входит: 'WXT' или 'BAT-GUANO' — не идентификатор, а по externalId
+ * чат ищет циркуляры о событии.
+ */
 const ID_KEYS = [
+  "ref_ID",
   "id",
   "trigger_id",
   "burst_id",
   "event_id",
   "alert_id",
-  "instrument",
 ];
 const TIME_KEYS = [
   "trigger_time",
@@ -58,11 +63,17 @@ const toCoords = (data: Record<string, unknown>): NoticeCoords | null => {
   return null;
 };
 
+/** Unified schema GCN кладёт идентификаторы массивом (`"id": ["01708973486"]`) — берём первый. */
+const toExternalId = (value: unknown): string | null => {
+  const id = Array.isArray(value) ? value[0] : value;
+
+  return typeof id === "string" || typeof id === "number" ? String(id) : null;
+};
+
 /** JSON-нотисы без выделенного парсера: тянем координаты, время и идентификатор эвристикой. */
 export const parseGenericJson: Parser = (raw, topic) => {
   const data = JSON.parse(raw) as Record<string, unknown>;
   const titleSource = pick(data, TITLE_KEYS);
-  const externalId = pick(data, ID_KEYS);
 
   return {
     kind: kindFromTopic(topic),
@@ -72,7 +83,7 @@ export const parseGenericJson: Parser = (raw, topic) => {
     summary: null,
     eventAt: toIsoDate(pick(data, TIME_KEYS)),
     coords: toCoords(data),
-    externalId: typeof externalId === "string" ? externalId : null,
+    externalId: toExternalId(pick(data, ID_KEYS)),
     payload: data,
   };
 };

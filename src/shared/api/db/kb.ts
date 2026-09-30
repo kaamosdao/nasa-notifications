@@ -41,23 +41,40 @@ const toVector = (embedding: number[] | null) =>
   embedding ? JSON.stringify(embedding) : null;
 
 /**
- * Циркуляры о событии notice: по `event_name` (`S250206dm`, `EP250227a`) или, если notice сам
- * циркуляр, — по его номеру и событию, о котором он написан.
+ * Идентификатор триггера, который стоит искать в тексте циркуляров: номер Fermi/Swift
+ * (`812212345`), id EP (`01708973486`), SVOM (`sb24022203`). Короткие и без цифр дают ложные
+ * совпадения; символы — только те, что безопасно подставить в регулярку `\m…\M`.
+ */
+const TRIGGER_ID = /^(?=.*\d)\w{6,}$/;
+
+/**
+ * Циркуляры о событии notice. Имя события берётся так:
+ * 1. `event_name = externalId` — у LVK (`S250206dm`) и IceCube LVK это одно и то же;
+ * 2. notice-циркуляр — событие, о котором он написан;
+ * 3. иначе (у GRB-нотисов externalId — номер триггера, а циркуляры называются `GRB 250706A`)
+ *    — события циркуляров, упоминающих триггер в заголовке или первом куске, в окне
+ *    от 2 суток до события до 30 после. Только если п. 1 ничего не нашёл: в циркулярах
+ *    про GRB упоминают и гравволновые суперсобытия, и чужое событие подмешалось бы к LVK.
  *
  * Без вектора (Ollama недоступна) расстояние — null у всех строк, и порядок решает свежесть.
  */
 export const findEventChunks = async ({
   externalId,
   isCircular,
+  eventAt,
   embedding,
   limit,
 }: {
   externalId: string;
   isCircular: boolean;
+  /** Время события (или получения notice) — центр окна поиска упоминаний триггера. */
+  eventAt: string;
   embedding: number[] | null;
   limit: number;
 }): Promise<KbChunk[]> => {
   const circularId = isCircular ? externalId : null;
+  const triggerId =
+    !isCircular && TRIGGER_ID.test(externalId) ? externalId : null;
 
   const { rows } = await getPool().query<KbChunkRow>(
     `with names as (
@@ -65,14 +82,24 @@ export const findEventChunks = async ({
         union
        select event_name from kb_chunks
         where source = 'circular' and source_id = $2::text and event_name is not null
+        union
+       select event_name from kb_chunks
+        where $3::text is not null
+          and not exists (select 1 from kb_chunks where event_name = $1::text)
+          and source = 'circular'
+          and chunk_index = 0
+          and event_name is not null
+          and published_at between $4::timestamptz - interval '2 days'
+                               and $4::timestamptz + interval '30 days'
+          and (title || ' ' || content) ~ ('\\m' || $3::text || '\\M')
      )
      select ${SELECT_FIELDS}
        from kb_chunks
       where source = 'circular'
         and (event_name in (select name from names) or source_id = $2::text)
-      order by embedding <=> $3::vector, published_at desc nulls last, chunk_index
-      limit $4`,
-    [externalId, circularId, toVector(embedding), limit],
+      order by embedding <=> $5::vector, published_at desc nulls last, chunk_index
+      limit $6`,
+    [externalId, circularId, triggerId, eventAt, toVector(embedding), limit],
   );
 
   return rows.map(toChunk);

@@ -61,6 +61,7 @@ export const retrieveContext = async ({
       ? findEventChunks({
           externalId: notice.externalId,
           isCircular: notice.kind === "circular",
+          eventAt: notice.eventAt ?? notice.receivedAt,
           embedding,
           limit: EVENT_LIMIT,
         })

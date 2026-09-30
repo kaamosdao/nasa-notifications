@@ -78,7 +78,10 @@ WebGL2-рендерер с фолбэками. Этап 5 — переход int
 ### 3.2 Парсеры
 
 Форматы топиков разнородны: у новых схем — JSON по
-[gcn-schema](https://gcn.nasa.gov/docs/schema), у части — текст (циркуляры).
+[gcn-schema](https://gcn.nasa.gov/docs/schema), у части — текст (циркуляры). SVOM публикует
+только VOEvent 2.0 (XML) — у него свой парсер `svom-voevent.ts` на `fast-xml-parser`:
+`Burst_Id` (`sb25020701`) → `externalId`, `ISOTime` — UTC без суффикса `Z`, у GRM нет позиции.
+JSON-схема SVOM в gcn-schema есть, но публичного JSON-топика нет.
 
 `parsers/` — мапа `topic → parser(buffer): NormalizedNotice`, с **обязательным fallback**:
 `JSON.parse`, при неудаче — весь текст в `summary`, `kind: "unknown"`. Незнакомый формат не
