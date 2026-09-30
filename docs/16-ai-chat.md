@@ -3,7 +3,7 @@
 Рабочий план фичи «спросить нейросеть про notice». Источник правды по её архитектурным
 решениям — этот файл; общий план проекта — [`15-plan.md`](15-plan.md).
 
-Статус: **этап 0 выполнен** (инфраструктура), дальше — этап 1.
+Статус: **этапы 0–1 выполнены** (инфраструктура, база знаний), дальше — этап 2.
 
 ## 1. Что делаем
 
@@ -48,7 +48,8 @@ Opus 5.5 ≈ $0.034, Sonnet 5.5 ≈ $0.017, Haiku 4.5 ≈ $0.009. Системн
 Всё открытое (NASA, public domain), собирается без участия пользователя:
 
 - **Документация GCN** — репозиторий `nasa-gcn/gcn.nasa.gov`, страницы миссий в markdown →
-  курируемые справочные статьи в `knowledge/*.md` (вычитывает человек: факты видят пользователи).
+  курируемые справочные статьи в `services/ingestor/knowledge/*.md` (вычитывает человек: факты
+  видят пользователи).
 - **JSON-схемы** — `nasa-gcn/gcn-schema`, описания полей, чтобы модель понимала `payload`.
 - **GCN Circulars** — архив с gcn.nasa.gov, фильтр «последние 3 года»; новые — из топика
   `gcn.circulars`, который ingestor уже читает.
@@ -72,19 +73,31 @@ Opus 5.5 ≈ $0.034, Sonnet 5.5 ≈ $0.017, Haiku 4.5 ≈ $0.009. Системн
   `OLLAMA_CHAT_MODEL`, `OLLAMA_EMBED_MODEL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`,
   лимиты (`CHAT_RATE_PER_MIN`, `CHAT_RATE_PER_DAY`, `CHAT_DAILY_CAP`).
 
-### Этап 1. База знаний
+### Этап 1. База знаний — готово
 
-- Справочные статьи по миссиям и топикам из `DEFAULT_TOPICS` ingestor'а
-  (LVK, Fermi GBM, Swift BAT, IceCube, Einstein Probe, SVOM) — `knowledge/*.md`
-  с front matter (`kind`, `topics`, `url`).
-- Загрузка архива циркуляров за последние 3 года.
+- Справочные статьи на английском в `services/ingestor/knowledge/*.md` (внутри пакета, чтобы
+  попасть в образ ingestor): обзор GCN, циркуляры и имена событий, наука (GRB, гравволны,
+  нейтрино), миссии из `DEFAULT_TOPICS` (LVK, Fermi GBM, Swift, IceCube, Einstein Probe, SVOM).
+  Front matter — плоский `key: value`: `title`, `kind`, `topics` (csv префиксов топиков), `url`.
+  Факты взяты со страниц миссий gcn.nasa.gov; перед продом статьи вычитывает человек.
+- Модель документа — `KbDocument` (`src/kb/types.ts`), источники — `src/kb/sources/`:
+  - `readKnowledge()` — статьи; битая статья роняет загрузку (это наш контент);
+  - `fetchCircularArchive({ since })` — архив `gcn.nasa.gov/circulars/archive.json.tar.gz`
+    (~30 МБ, NASA пересобирает ежедневно) потоком: gunzip + `tar-stream`, без диска.
+    За 3 года — ~11 000 циркуляров, ~20 МБ текста, прогон ~20 с;
+  - `toCircularDocument()` — та же форма у сообщений `gcn.circulars`, этап 2 переиспользует её
+    для новых циркуляров. `submitter`/`email` не берутся.
+- `eventId` (`GRB 250706A`, `LIGO/Virgo/KAGRA S250206dm`, `IceCube-250708A`, `EP250227a`)
+  NASA уже проставила у ~92% циркуляров; нормализация к `externalId` notice — на этапе 2.
+- Миграция `003-kb-topics.sql`: `kb_chunks.topics text[]` — `kind` слишком груб
+  (у Fermi/Swift/SVOM/EP он один — `grb`).
 
 ### Этап 2. Индексация (запись в RAG)
 
 - CLI `pnpm --filter ingestor kb:index`: чанкинг, эмбеддинги, идемпотентный upsert
-  в `kb_chunks`. Источники: `knowledge/*.md` и архив циркуляров.
-- Имя события (`GRB 250929A`, `S250929ab`, `EP250929a`, …) извлекается из subject
-  циркуляра в `event_name`.
+  в `kb_chunks`. Источники — `src/kb/sources/` (этап 1).
+- `event_name` — `eventId` циркуляра, нормализованный к виду `externalId` notice
+  (`LIGO/Virgo/KAGRA S250206dm` → `S250206dm`); без `eventId` — извлечение из subject.
 - Новые циркуляры ingestor индексирует после вставки асинхронно: ошибка эмбеддинга
   логируется и не блокирует ленту (догоняет следующий `kb:index`).
 

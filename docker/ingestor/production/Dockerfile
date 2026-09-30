@@ -31,6 +31,7 @@ COPY --chown=node:node --from=deps /app/node_modules ./node_modules
 COPY --chown=node:node --from=deps /app/services/ingestor/node_modules ./services/ingestor/node_modules
 COPY --chown=node:node --from=builder /app/services/ingestor/dist ./services/ingestor/dist
 COPY --chown=node:node services/ingestor/sql ./services/ingestor/sql
+COPY --chown=node:node services/ingestor/knowledge ./services/ingestor/knowledge
 COPY --chown=node:node services/ingestor/package.json ./services/ingestor/
 
 USER node
