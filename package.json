@@ -27,6 +27,7 @@
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "react-hook-form": "^7.65.0",
+    "react-markdown": "^10.1.0",
     "sass": "^1.92.1",
     "transition-hook": "^1.5.2",
     "ua-parser-js": "^2.0.6",

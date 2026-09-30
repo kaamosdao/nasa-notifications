@@ -1,0 +1,256 @@
+.root {
+  width: min(#{vw(640)}, calc(100% - var(--spacing-32)));
+  max-width: none;
+  height: min(#{vw(760)}, calc(100% - var(--spacing-32)));
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  color: var(--main-text-color);
+  background: none;
+  border: none;
+
+  &::backdrop {
+    background-color: var(--chat-backdrop);
+    backdrop-filter: blur(#{vw(4)});
+  }
+
+  @include mq(md) {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--spacing-12);
+  height: 100%;
+  padding: var(--spacing-20);
+  background-color: var(--chat-panel-background);
+  border: 1px solid var(--feed-card-border);
+  border-top: vw(2) solid var(--accent);
+  border-radius: vw(12);
+
+  @include mq(md) {
+    padding: var(--spacing-16);
+    border-radius: 0;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  column-gap: var(--spacing-12);
+}
+
+.heading {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  row-gap: var(--spacing-4);
+  min-width: 0;
+}
+
+.title {
+  @include h5();
+}
+
+.subtitle {
+  overflow: hidden;
+  color: var(--feed-text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  @include captionXS();
+}
+
+.close {
+  flex: 0 0 auto;
+  width: vw(32);
+  height: vw(32);
+  color: var(--main-text-color);
+  font-size: vw(24);
+  line-height: 1;
+  background: none;
+  border: 1px solid var(--feed-card-border);
+  border-radius: 50%;
+  cursor: pointer;
+
+  @include mq(md) {
+    width: 32px;
+    height: 32px;
+    font-size: 24px;
+  }
+}
+
+.scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  row-gap: var(--spacing-16);
+  min-height: 0;
+  padding-right: var(--spacing-8);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.hint {
+  margin: auto 0;
+  color: var(--feed-text-muted);
+  text-align: center;
+
+  @include captionXS();
+}
+
+.message {
+  max-width: 90%;
+}
+
+.question {
+  align-self: flex-end;
+  padding: var(--spacing-8) var(--spacing-12);
+  white-space: pre-line;
+  background-color: var(--feed-card-background);
+  border: 1px solid var(--feed-card-border);
+  border-radius: vw(8);
+
+  @include body-paragraph-secondary();
+}
+
+.answer {
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--spacing-12);
+  align-self: flex-start;
+}
+
+.pending {
+  color: var(--feed-text-muted);
+  animation: pulse 1.6s ease-in-out infinite;
+
+  @include body-paragraph-secondary();
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.sources {
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--spacing-4);
+}
+
+.source {
+  display: flex;
+  column-gap: var(--spacing-8);
+  color: var(--feed-text-muted);
+  text-decoration: none;
+
+  @include captionXS();
+
+  @include hover {
+    color: var(--main-text-color);
+  }
+}
+
+.sourceLabel {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.sourceTitle {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  column-gap: var(--spacing-12);
+  color: var(--c-kind-grb);
+
+  @include body-paragraph-secondary();
+}
+
+.retry,
+.suggestion {
+  padding: vw(6) vw(12);
+  color: var(--main-text-color);
+  background: none;
+  border: 1px solid var(--feed-card-border);
+  border-radius: vw(999);
+  cursor: pointer;
+
+  @include captionXS();
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  @include mq(md) {
+    padding: 6px 12px;
+  }
+}
+
+.suggestion:not(:disabled) {
+  @include hover {
+    border-color: var(--accent);
+  }
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-8);
+}
+
+.form {
+  display: flex;
+  align-items: flex-end;
+  column-gap: var(--spacing-8);
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--spacing-8) var(--spacing-12);
+  color: var(--main-text-color);
+  font: inherit;
+  background-color: var(--feed-card-background);
+  border: 1px solid var(--feed-card-border);
+  border-radius: vw(8);
+  resize: none;
+
+  @include body-paragraph-secondary();
+
+  &:focus-visible {
+    border-color: var(--accent);
+    outline: none;
+  }
+}
+
+.submit {
+  flex: 0 0 auto;
+  padding: var(--spacing-8) var(--spacing-16);
+  color: var(--c-space);
+  background-color: var(--accent);
+  border: none;
+  border-radius: vw(8);
+  cursor: pointer;
+
+  @include btnS();
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}

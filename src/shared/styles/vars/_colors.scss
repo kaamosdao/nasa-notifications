@@ -26,4 +26,8 @@
   --feed-card-background: rgb(255 255 255 / 6%);
   --feed-card-border: rgb(255 255 255 / 10%);
   --feed-text-muted: rgb(255 255 255 / 55%);
+
+  /* AI-чат: панель непрозрачнее карточки — длинный текст поверх WebGL не читается */
+  --chat-panel-background: rgb(10 12 20 / 92%);
+  --chat-backdrop: rgb(0 0 0 / 55%);
 }

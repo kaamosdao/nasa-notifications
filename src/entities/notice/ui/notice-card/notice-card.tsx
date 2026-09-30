@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import clsx from "clsx";
 
 import { mod } from "@shared/utils";
@@ -16,11 +16,13 @@ const COLLAPSE_AFTER = 320;
 
 export type NoticeCardProps = {
   notice: Notice;
+  /** Действие в правом верхнем углу — слот, чтобы entity не зависела от features. */
+  action?: ReactNode;
   className?: string;
 };
 
 export const NoticeCard = (props: NoticeCardProps) => {
-  const { notice, className } = props;
+  const { notice, action, className } = props;
   const [isExpanded, setIsExpanded] = useState(false);
 
   const summary = notice.summary?.trim() || null;
@@ -38,6 +40,7 @@ export const NoticeCard = (props: NoticeCardProps) => {
         <time className={s.time} dateTime={notice.receivedAt}>
           {formatNoticeTime(notice.receivedAt)}
         </time>
+        {action}
       </header>
 
       <h3 className={s.title}>{notice.title}</h3>

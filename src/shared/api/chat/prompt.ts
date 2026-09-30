@@ -104,15 +104,21 @@ export const buildMessages = ({
   ];
 };
 
-export type ChatSource = { title: string; url: string };
+/**
+ * Источник под ответом. `label` различает циркуляры одного события — subject у них
+ * часто совпадает дословно.
+ */
+export type ChatSource = { label: string; title: string; url: string };
 
 /** Источники для UI: уникальные ссылки в порядке релевантности. */
 export const toSources = (chunks: KbChunk[]): ChatSource[] => {
   const sources = new Map<string, ChatSource>();
 
-  for (const { title, url } of chunks) {
+  for (const { source, sourceId, title, url } of chunks) {
     if (url && !sources.has(url)) {
-      sources.set(url, { title, url });
+      const label = source === "circular" ? `GCN ${sourceId}` : "Guide";
+
+      sources.set(url, { label, title, url });
     }
   }
 

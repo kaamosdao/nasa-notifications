@@ -1,0 +1,21 @@
+.root {
+  flex: 0 0 auto;
+  padding: vw(2) vw(8);
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--feed-card-border);
+  border-radius: vw(999);
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+
+  @include captionXS();
+
+  @include hover {
+    border-color: var(--accent);
+  }
+
+  &:focus-visible {
+    border-color: var(--accent);
+    outline: none;
+  }
+}

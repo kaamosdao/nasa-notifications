@@ -5,6 +5,8 @@ import type { NoticeKind } from "./types";
 export type KbChunk = {
   id: string;
   source: "knowledge" | "circular";
+  /** Номер циркуляра или slug статьи. */
+  sourceId: string;
   title: string;
   url: string | null;
   content: string;
@@ -14,17 +16,20 @@ export type KbChunk = {
 type KbChunkRow = {
   id: string;
   source: KbChunk["source"];
+  source_id: string;
   title: string;
   url: string | null;
   content: string;
   published_at: Date | null;
 };
 
-const SELECT_FIELDS = "id, source, title, url, content, published_at";
+const SELECT_FIELDS =
+  "id, source, source_id, title, url, content, published_at";
 
 const toChunk = (row: KbChunkRow): KbChunk => ({
   id: row.id,
   source: row.source,
+  sourceId: row.source_id,
   title: row.title,
   url: row.url,
   content: row.content,

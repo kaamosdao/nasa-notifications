@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { NoticeChatButton } from "@features/notice-chat";
 import {
   useNoticeFeed,
   useNoticeFeedActions,
@@ -245,7 +246,11 @@ export const NoticeFeed = (props: NoticeFeedProps) => {
           )}
 
           {items.map((notice) => (
-            <NoticeCard key={notice.id} notice={notice} />
+            <NoticeCard
+              key={notice.id}
+              notice={notice}
+              action={<NoticeChatButton notice={notice} />}
+            />
           ))}
         </div>
       </div>

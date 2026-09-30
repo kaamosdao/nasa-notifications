@@ -1,0 +1,45 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--spacing-8);
+
+  @include body-paragraph-secondary();
+
+  ul,
+  ol {
+    display: flex;
+    flex-direction: column;
+    row-gap: var(--spacing-4);
+    padding-left: var(--spacing-20);
+  }
+
+  ul {
+    list-style: disc;
+  }
+
+  ol {
+    list-style: decimal;
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  code {
+    padding: 0 vw(4);
+    font-family: ui-monospace, monospace;
+    font-size: 0.9em;
+    background-color: var(--feed-card-background);
+    border-radius: vw(4);
+  }
+}
